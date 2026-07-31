@@ -4,7 +4,64 @@ Durable facts about the Catskills Cycling Club photo pipeline. Written so a
 future session can pick this up without rediscovering any of it.
 
 **Status: deployed and running unattended on Ada since 31 July 2026.**
-Build session 27 July; deploy session 31 July.
+Build session 27 July; deploy session 31 July; archived to GitHub 31 July.
+
+---
+
+## Start here if you are a new session
+
+**Canonical source: https://github.com/membership-CCC/ccc-darkroom** — public,
+so it can be read with no auth:
+
+```
+https://raw.githubusercontent.com/membership-CCC/ccc-darkroom/main/docs/CCC_DARKROOM_context.md
+```
+
+Read this file first, then `README.md` at the repo root. The runbook
+(`darkroom/DARKROOM_DEPLOY_RUNBOOK.md`) is for deploying to a machine, not for
+understanding the system.
+
+**The repo is scrubbed.** Every script carries a placeholder Drive account,
+`GoogleDrive-account@example.com`, because the repo is public. The real
+account is written in at install time by `set_drive_account.sh`. Two
+consequences that have already caused one confusing failure:
+
+- A clone deployed without running `set_drive_account.sh` finds no Drive
+  folder. `install_launchd.sh` refuses to schedule in that state rather than
+  loading a timer that fires every 15 minutes into a path that does not exist.
+- **Copying a single file out of a clone onto a working install re-introduces
+  the placeholder into that file.** Re-run `set_drive_account.sh` afterwards —
+  it is idempotent and reports which files it actually had to change.
+
+---
+
+## Working on this from a clone
+
+The repo is the source of truth; `~/CCC/Darkroom/bin` on Ada is a deployed
+copy. Edit in the clone, then reinstall — do not edit `bin/` directly, or the
+next deploy silently reverts your change.
+
+```bash
+git clone https://github.com/membership-CCC/ccc-darkroom
+cd ccc-darkroom/darkroom
+
+# ... edit ...
+
+./install_darkroom.sh                       # backs up whatever it replaces
+./set_drive_account.sh <your-account-name>  # ALWAYS after installing
+python3 ~/CCC/Darkroom/bin/darkroom_curate.py --selftest
+bash ~/CCC/Darkroom/bin/darkroom_cycle.sh   # prove it by hand
+```
+
+Only touch `install_launchd.sh` if the schedule itself changed; the installed
+scripts are what the existing timer already runs.
+
+To try a change against real material without risking a roll, use
+`retest_roll.sh <roll-name>` — it re-curates and re-renders from the untouched
+originals and moves the previous outputs aside rather than deleting them.
+
+Anything learned that a future session would otherwise rediscover belongs in
+**this file**, not in a commit message. That is the whole reason it exists.
 
 ---
 
@@ -238,7 +295,9 @@ it is v2, whatever the filename claims. Secondary check: `darkroom.py` is
 | Fingerprint ledger | `~/CCC/Darkroom/.state/` — outside Drive by design, so a sync fault cannot cause reprocessing |
 | LLM response cache | `~/CCC/Darkroom/.state/llm_cache/` |
 | API key | `~/CCC/Darkroom/.anthropic_key`, chmod 600 |
-| Drive root | `~/Library/CloudStorage/GoogleDrive-account@example.com/My Drive/CCC/Photos` |
+| Drive root | `~/Library/CloudStorage/GoogleDrive-<account>/My Drive/CCC/Photos` — placeholder in the repo, set by `set_drive_account.sh` |
+| Canonical source | https://github.com/membership-CCC/ccc-darkroom (public) |
+| Working clone on Ada | `~/Documents/ccc-darkroom/` |
 | Uploads land in | `CCC/Photos/_dump/<roll-name>/` |
 | Sources archived to | `CCC/Photos/_originals/<roll>/` |
 | Deploy package on Ada | `~/Downloads/darkroom/` |
