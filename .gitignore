@@ -1,0 +1,71 @@
+# ---------------------------------------------------------------------------
+# Secrets — never commit these.
+# ---------------------------------------------------------------------------
+.anthropic_key
+*.key
+*.pem
+.env
+.env.*
+
+# ---------------------------------------------------------------------------
+# Runtime state. Lives in ~/CCC/Darkroom on Ada, not in the repo — but guard
+# against anyone running the pipeline from inside a clone.
+# ---------------------------------------------------------------------------
+.state/
+logs/
+reports/
+calibration.json
+llm_cache/
+*.log
+
+# Curation plans and manifests belong to a roll in Drive, not to the code.
+_curation.json
+manifest.csv
+decisions.txt
+HOLD_REVIEW.txt
+
+# ---------------------------------------------------------------------------
+# Installer backups — created by install_darkroom.sh / set_drive_account.sh
+# ---------------------------------------------------------------------------
+*.bak_*
+*.drivebak_*
+*.v2.py
+*.v2.csv
+*.pre-curator_*
+
+# ---------------------------------------------------------------------------
+# Photographs. The repo is code and docs only; images live in Drive.
+# ---------------------------------------------------------------------------
+*.jpg
+*.jpeg
+*.png
+*.tif
+*.tiff
+*.webp
+*.dng
+*.raw
+!darkroom/fonts/*
+
+# ---------------------------------------------------------------------------
+# Build artefacts
+# ---------------------------------------------------------------------------
+*.zip
+dist/
+build/
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ---------------------------------------------------------------------------
+# macOS
+# ---------------------------------------------------------------------------
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes

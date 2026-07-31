@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  @font-face { font-family:'Bebas'; src:url('fonts/BebasNeue-Regular.ttf'); }
+  @font-face { font-family:'Mont'; src:url('fonts/Montserrat-Regular.ttf'); }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#1A1812; font-family:'Mont',sans-serif; }
+  .sheet { width:2200px; padding:56px 64px 40px; }
+
+  h1 { font-family:'Bebas'; font-size:60px; color:#ECE6D6; letter-spacing:.5px; line-height:1; }
+  .sub { font-size:19px; color:#8F8B7E; margin-top:12px; }
+  .rule { height:3px; background:#8DC8E8; margin:22px 0 40px; }
+  .meta { font-size:15px; color:#8F8B7E; margin-top:34px; letter-spacing:.4px; }
+</style></head>
+<body><div class="sheet">
+
+<h1>CCC DARKROOM — SYSTEM ARCHITECTURE</h1>
+<div class="sub">Film scan ingestion, brand tone mapping and multi-format publishing pipeline &nbsp;·&nbsp; v2 &nbsp;·&nbsp; July 2026</div>
+<div class="rule"></div>
+
+<svg width="2072" height="1180" viewBox="0 0 2072 1180" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ECE6D6"/>
+    </marker>
+    <marker id="arwSky" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8DC8E8"/>
+    </marker>
+    <marker id="arwOpen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10" fill="none" stroke="#8F8B7E" stroke-width="1.6"/>
+    </marker>
+    <style>
+      .zone     { fill:#201E17; stroke:#4A463C; stroke-width:2; stroke-dasharray:9 6; rx:14; }
+      .zoneLbl  { font-family:'Bebas'; font-size:26px; fill:#8DC8E8; letter-spacing:1.2px; }
+      .zoneNote { font-family:'Mont'; font-size:14px; fill:#6E6A5F; }
+      .comp     { fill:#2B2721; stroke:#5C574B; stroke-width:2; rx:8; }
+      .compKey  { fill:#2B2721; stroke:#8DC8E8; stroke-width:2.5; rx:8; }
+      .compExt  { fill:#231F19; stroke:#4A463C; stroke-width:2; stroke-dasharray:6 5; rx:8; }
+      .store    { fill:#2A362F; stroke:#4F6659; stroke-width:2; }
+      .t        { font-family:'Mont'; font-size:17px; fill:#ECE6D6; }
+      .tb       { font-family:'Bebas'; font-size:23px; fill:#ECE6D6; letter-spacing:.6px; }
+      .ts       { font-family:'Mont'; font-size:13px; fill:#8F8B7E; }
+      .flow     { stroke:#ECE6D6; stroke-width:2.2; fill:none; marker-end:url(#arw); }
+      .flowKey  { stroke:#8DC8E8; stroke-width:3; fill:none; marker-end:url(#arwSky); }
+      .flowBi   { stroke:#8DC8E8; stroke-width:3; fill:none; marker-end:url(#arwSky); marker-start:url(#arwSky); }
+      .flowOpt  { stroke:#8F8B7E; stroke-width:1.8; fill:none; stroke-dasharray:7 5; marker-end:url(#arwOpen); }
+      .flowLbl  { font-family:'Mont'; font-size:13px; fill:#B8B3A5; }
+    </style>
+  </defs>
+
+  <!-- ============ ZONE 1 : MOBILE ============ -->
+  <rect class="zone" x="8" y="30" width="330" height="248"/>
+  <text class="zoneLbl" x="28" y="66">MOBILE — iOS</text>
+  <text class="zoneNote" x="28" y="88">Untrusted network · no compute</text>
+
+  <rect class="comp" x="28" y="106" width="290" height="70"/>
+  <text class="tb" x="46" y="136">GOOGLE DRIVE APP</text>
+  <text class="ts" x="46" y="158">Upload scans from lab email</text>
+
+  <rect class="comp" x="28" y="190" width="290" height="70"/>
+  <text class="tb" x="46" y="220">CLAUDE MOBILE</text>
+  <text class="ts" x="46" y="242">Monitor · respond to halts</text>
+
+  <!-- ============ ZONE 2 : CLOUD ============ -->
+  <rect class="zone" x="404" y="30" width="560" height="700"/>
+  <text class="zoneLbl" x="424" y="66">CLOUD</text>
+  <text class="zoneNote" x="424" y="88">Google Workspace · 1.5 TB available</text>
+
+  <!-- drive datastores (cylinders) -->
+  <g>
+    <path class="store" d="M436 132 h300 v58 a150 14 0 0 1 -300 0 z"/>
+    <ellipse class="store" cx="586" cy="132" rx="150" ry="14"/>
+    <text class="tb" x="470" y="150">_dump / &lt;roll-name&gt;</text>
+    <text class="ts" x="470" y="172">Landing zone · phone uploads</text>
+  </g>
+
+  <g>
+    <path class="store" d="M436 288 h300 v96 a150 14 0 0 1 -300 0 z"/>
+    <ellipse class="store" cx="586" cy="288" rx="150" ry="14"/>
+    <text class="tb" x="470" y="306">&lt;date&gt;_&lt;roll&gt; /</text>
+    <text class="ts" x="470" y="328">instagram · strava · email · web</text>
+    <text class="ts" x="470" y="348">manifest.csv · contact_sheet.png</text>
+    <text class="ts" x="470" y="368">Published artefacts — status: draft</text>
+  </g>
+
+  <g>
+    <path class="store" d="M436 470 h300 v58 a150 14 0 0 1 -300 0 z"/>
+    <ellipse class="store" cx="586" cy="470" rx="150" ry="14"/>
+    <text class="tb" x="470" y="488">_originals / &lt;roll&gt;</text>
+    <text class="ts" x="470" y="510">Flat TIFF masters · ~600 MB/roll</text>
+  </g>
+
+  <rect class="compExt" x="436" y="600" width="300" height="86"/>
+  <text class="tb" x="454" y="630">n8n CLOUD</text>
+  <text class="ts" x="454" y="652">Drive trigger on manifest.csv</text>
+  <text class="ts" x="454" y="672">OPTIONAL · orchestration only</text>
+
+  <!-- ============ ZONE 3 : ADA ============ -->
+  <rect class="zone" x="1030" y="30" width="600" height="700"/>
+  <text class="zoneLbl" x="1050" y="66">ADA — MAC MINI (LOCAL COMPUTE)</text>
+  <text class="zoneNote" x="1050" y="88">Sleep prevented · always on · sole processing host</text>
+
+  <rect class="comp" x="1054" y="112" width="552" height="72"/>
+  <text class="tb" x="1074" y="142">GOOGLE DRIVE FOR DESKTOP</text>
+  <text class="ts" x="1074" y="164">Bidirectional sync · folder set to Available Offline</text>
+
+  <rect class="compKey" x="1054" y="212" width="552" height="72"/>
+  <text class="tb" x="1074" y="242">launchd — com.ccc.filmwatch</text>
+  <text class="ts" x="1074" y="264">StartInterval 900 s · unattended scheduler</text>
+
+  <rect class="compKey" x="1054" y="312" width="552" height="130"/>
+  <text class="tb" x="1074" y="342">ccc_film_process.py</text>
+  <text class="ts" x="1074" y="366">Tone map: luminance → #1A1812 / #ECE6D6 LUT</text>
+  <text class="ts" x="1074" y="386">Technical triage · orientation detection</text>
+  <text class="ts" x="1074" y="406">Smart crop: 160×160 edge-energy window search</text>
+  <text class="ts" x="1074" y="426">9 presets · crop / mat / fit</text>
+
+  <rect class="comp" x="1054" y="470" width="552" height="72"/>
+  <text class="tb" x="1074" y="500">ccc_contact_sheet.py</text>
+  <text class="ts" x="1074" y="522">Branded review sheet · KEEP / CUT / HOLD rubric</text>
+
+  <rect class="comp" x="1054" y="570" width="552" height="116"/>
+  <text class="tb" x="1074" y="600">LOCAL STATE  ~/CCC/Film/.state</text>
+  <text class="ts" x="1074" y="622">SHA-1 fingerprint ledger · idempotency guard</text>
+  <text class="ts" x="1074" y="642">Deliberately outside Drive — survives sync faults</text>
+  <text class="ts" x="1074" y="662">Runtime: Python 3 + Pillow</text>
+
+  <!-- ============ ZONE 4 : PUBLISH ============ -->
+  <rect class="zone" x="1696" y="30" width="368" height="700"/>
+  <text class="zoneLbl" x="1716" y="66">PUBLISH TARGETS</text>
+  <text class="zoneNote" x="1716" y="88">Manual · approval gated</text>
+
+  <rect class="compExt" x="1716" y="112" width="328" height="66"/>
+  <text class="tb" x="1734" y="140">INSTAGRAM</text>
+  <text class="ts" x="1734" y="162">4:5 · 1:1 · 1.91:1 · 9:16</text>
+
+  <rect class="compExt" x="1716" y="200" width="328" height="66"/>
+  <text class="tb" x="1734" y="228">STRAVA</text>
+  <text class="ts" x="1734" y="250">1200 px long edge</text>
+
+  <rect class="compExt" x="1716" y="288" width="328" height="66"/>
+  <text class="tb" x="1734" y="316">MAILCHIMP</text>
+  <text class="ts" x="1734" y="338">Header 1200×600 · body 1200 w</text>
+
+  <rect class="compExt" x="1716" y="376" width="328" height="66"/>
+  <text class="tb" x="1734" y="404">CLOUDFLARE PAGES</text>
+  <text class="ts" x="1734" y="426">1600 px · hero 2400×1000</text>
+
+  <rect class="compExt" x="1716" y="470" width="328" height="216"/>
+  <text class="zoneLbl" x="1734" y="504" style="font-size:22px; fill:#C96A2B;">APPROVAL GATE</text>
+  <text class="ts" x="1734" y="530">No automated publishing.</text>
+  <text class="ts" x="1734" y="550">Every manifest row is written</text>
+  <text class="ts" x="1734" y="570">status = draft.</text>
+  <text class="ts" x="1734" y="598">HOLD review required for any</text>
+  <text class="ts" x="1734" y="618">frame showing route-locating</text>
+  <text class="ts" x="1734" y="638">detail before public use.</text>
+  <text class="ts" x="1734" y="666">Human decision · always.</text>
+
+  <!-- ============ FLOWS ============ -->
+  <!-- mobile -> dump -->
+  <path class="flowKey" d="M318 141 H 400 L 400 132 H 428"/>
+  <text class="flowLbl" x="326" y="122">1 · upload TIFF</text>
+
+  <!-- dump <-> ada drive client -->
+  <path class="flowBi" d="M742 148 H 1046"/>
+  <text class="flowLbl" x="796" y="138">2 · sync down (offline copy)</text>
+
+  <!-- drive client -> launchd (internal) -->
+  <path class="flow" d="M1330 188 V 208"/>
+
+  <!-- launchd -> processor -->
+  <path class="flow" d="M1330 288 V 308"/>
+  <text class="flowLbl" x="1344" y="302">3 · invoke every 15 min</text>
+
+  <!-- processor -> contact sheet -->
+  <path class="flow" d="M1330 446 V 466"/>
+
+  <!-- processor <-> state -->
+  <path class="flowOpt" d="M1090 446 V 566"/>
+  <text class="flowLbl" x="1100" y="512">read / write ledger</text>
+
+  <!-- processor -> outputs store -->
+  <path class="flowKey" d="M1050 380 H 990 L 990 330 H 742"/>
+  <text class="flowLbl" x="800" y="320">4 · write exports + manifest</text>
+
+  <!-- processor -> originals -->
+  <path class="flowKey" d="M1050 420 H 960 L 960 496 H 742"/>
+  <text class="flowLbl" x="800" y="516">5 · archive master</text>
+
+  <!-- outputs -> n8n -->
+  <path class="flowOpt" d="M586 400 V 596"/>
+  <text class="flowLbl" x="596" y="500">6 · optional trigger</text>
+
+  <!-- outputs -> publish (manual) -->
+  <path class="flowOpt" d="M742 300 H 860 L 860 750 H 1880 L 1880 692"/>
+  <text class="flowLbl" x="1150" y="742">7 · manual, approved publication</text>
+
+  <!-- claude mobile monitors ada -->
+  <path class="flowOpt" d="M318 225 H 360 L 360 800 H 1330 L 1330 692"/>
+  <text class="flowLbl" x="470" y="792">monitor · respond to halts</text>
+
+  <!-- ============ LEGEND ============ -->
+  <line x1="8" y1="860" x2="2064" y2="860" stroke="#3A362E" stroke-width="2"/>
+  <text class="zoneLbl" x="8" y="900" style="font-size:22px;">LEGEND</text>
+
+  <rect class="compKey" x="8" y="924" width="34" height="24"/>
+  <text class="t" x="56" y="942">Component in the automated path</text>
+
+  <rect class="comp" x="8" y="962" width="34" height="24"/>
+  <text class="t" x="56" y="980">Supporting component</text>
+
+  <rect class="compExt" x="8" y="1000" width="34" height="24"/>
+  <text class="t" x="56" y="1018">External / manual system</text>
+
+  <g transform="translate(500,924)">
+    <path class="store" d="M0 8 h34 v18 a17 5 0 0 1 -34 0 z"/>
+    <ellipse class="store" cx="17" cy="8" rx="17" ry="5"/>
+  </g>
+  <text class="t" x="548" y="942">Data store (persistent)</text>
+
+  <path class="flowKey" d="M500 972 H 534"/>
+  <text class="t" x="548" y="980">Primary data flow</text>
+
+  <path class="flowOpt" d="M500 1010 H 534"/>
+  <text class="t" x="548" y="1018">Optional / manual flow</text>
+
+  <path class="flowBi" d="M960 934 H 994"/>
+  <text class="t" x="1008" y="942">Bidirectional sync</text>
+
+  <text class="t" x="960" y="980" style="fill:#C96A2B;">Ember</text>
+  <text class="t" x="1030" y="980">Approval boundary — never automated</text>
+
+  <text class="t" x="960" y="1018" style="fill:#8DC8E8;">Sky</text>
+  <text class="t" x="1030" y="1018">Automated, unattended path</text>
+
+  <text class="ts" x="1420" y="942">Numbered flows 1–7 indicate execution order for a single roll.</text>
+  <text class="ts" x="1420" y="968">All compute is local to Ada; the cloud provides transport and storage only.</text>
+  <text class="ts" x="1420" y="994">n8n Cloud cannot read the local filesystem and has no Execute Command node —</text>
+  <text class="ts" x="1420" y="1020">it therefore orchestrates downstream of Drive, never in the image path.</text>
+</svg>
+
+<div class="meta">Catskills Cycling Club, Inc. &nbsp;·&nbsp; internal technical documentation &nbsp;·&nbsp; not for publication</div>
+</div></body></html>

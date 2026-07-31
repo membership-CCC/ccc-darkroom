@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  @font-face { font-family:'Bebas'; src:url('fonts/BebasNeue-Regular.ttf'); }
+  @font-face { font-family:'Mont'; src:url('fonts/Montserrat-Regular.ttf'); }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#1A1812; font-family:'Mont',sans-serif; }
+  .sheet { width:2700px; padding:56px 64px 40px; }
+  h1 { font-family:'Bebas'; font-size:60px; color:#ECE6D6; letter-spacing:.5px; line-height:1; }
+  .sub { font-size:19px; color:#8F8B7E; margin-top:12px; }
+  .rule { height:3px; background:#8DC8E8; margin:22px 0 40px; }
+  .meta { font-size:15px; color:#8F8B7E; margin-top:34px; letter-spacing:.4px; }
+</style></head>
+<body><div class="sheet">
+
+<h1>CCC DARKROOM — PROCESS MAP</h1>
+<div class="sub">BPMN 2.0 notation &nbsp;·&nbsp; one roll, lab scans to approved publication &nbsp;·&nbsp; v2 &nbsp;·&nbsp; July 2026</div>
+<div class="rule"></div>
+
+<svg width="2572" height="1290" viewBox="0 0 2572 1290" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="sq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ECE6D6"/>
+    </marker>
+    <marker id="sqSky" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8DC8E8"/>
+    </marker>
+    <marker id="msg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10" fill="none" stroke="#8F8B7E" stroke-width="1.6"/>
+    </marker>
+    <style>
+      .lane      { fill:#201E17; stroke:#4A463C; stroke-width:2; }
+      .laneAuto  { fill:#232B26; stroke:#4A5A50; stroke-width:2; }
+      .laneHdr   { fill:#2A2620; stroke:#4A463C; stroke-width:2; }
+      .laneHdrA  { fill:#2C3730; stroke:#4A5A50; stroke-width:2; }
+      .laneTxt   { font-family:'Bebas'; font-size:24px; fill:#8DC8E8; letter-spacing:1px; }
+      .laneSub   { font-family:'Mont'; font-size:12px; fill:#6E6A5F; }
+      .task      { fill:#2B2721; stroke:#5C574B; stroke-width:2; rx:10; }
+      .taskAuto  { fill:#2B2721; stroke:#8DC8E8; stroke-width:2.5; rx:10; }
+      .taskMan   { fill:#2B2721; stroke:#C96A2B; stroke-width:2.5; rx:10; }
+      .gw        { fill:#2B2721; stroke:#8DC8E8; stroke-width:2.5; }
+      .evStart   { fill:#2B2721; stroke:#ECE6D6; stroke-width:2.5; }
+      .evEnd     { fill:#2B2721; stroke:#C96A2B; stroke-width:6; }
+      .evTimer   { fill:#2B2721; stroke:#8DC8E8; stroke-width:2.5; }
+      .store     { fill:#2A362F; stroke:#4F6659; stroke-width:2; }
+      .tt        { font-family:'Mont'; font-size:15px; fill:#ECE6D6; }
+      .ttb       { font-family:'Bebas'; font-size:19px; fill:#ECE6D6; letter-spacing:.5px; }
+      .ts        { font-family:'Mont'; font-size:12px; fill:#8F8B7E; }
+      .seq       { stroke:#ECE6D6; stroke-width:2.2; fill:none; marker-end:url(#sq); }
+      .seqAuto   { stroke:#8DC8E8; stroke-width:2.6; fill:none; marker-end:url(#sqSky); }
+      .msgf      { stroke:#8F8B7E; stroke-width:1.8; fill:none; stroke-dasharray:7 5; marker-end:url(#msg); }
+      .fl        { font-family:'Mont'; font-size:12px; fill:#B8B3A5; }
+    </style>
+  </defs>
+
+  <!-- ================= LANES ================= -->
+  <rect class="lane"     x="0"  y="0"   width="2572" height="176"/>
+  <rect class="laneHdr"  x="0"  y="0"   width="196"  height="176"/>
+  <text class="laneTxt"  x="18" y="76"  transform="rotate(0)">JOHN — MOBILE</text>
+  <text class="laneSub"  x="18" y="98">Phone · anywhere</text>
+
+  <rect class="lane"     x="0"  y="176" width="2572" height="212"/>
+  <rect class="laneHdr"  x="0"  y="176" width="196"  height="212"/>
+  <text class="laneTxt"  x="18" y="264">GOOGLE DRIVE</text>
+  <text class="laneSub"  x="18" y="286">Storage + transport</text>
+
+  <rect class="laneAuto" x="0"  y="388" width="2572" height="352"/>
+  <rect class="laneHdrA" x="0"  y="388" width="196"  height="352"/>
+  <text class="laneTxt"  x="18" y="494">ADA</text>
+  <text class="laneTxt"  x="18" y="520" style="font-size:19px;">UNATTENDED</text>
+  <text class="laneSub"  x="18" y="544">launchd · every 15 min</text>
+  <text class="laneSub"  x="18" y="562">No human present</text>
+
+  <rect class="lane"     x="0"  y="740" width="2572" height="212"/>
+  <rect class="laneHdr"  x="0"  y="740" width="196"  height="212"/>
+  <text class="laneTxt"  x="18" y="828">JOHN — REVIEW</text>
+  <text class="laneSub"  x="18" y="850">Approval gate</text>
+
+  <!-- ================= LANE 1 : MOBILE ================= -->
+  <circle class="evStart" cx="266" cy="88" r="26"/>
+  <text class="ts" x="222" y="140">Scans arrive</text>
+  <text class="ts" x="228" y="156">from lab</text>
+
+  <rect class="task" x="350" y="48" width="186" height="80"/>
+  <text class="ttb" x="366" y="78">DOWNLOAD</text>
+  <text class="ts"  x="366" y="98">Save scans from</text>
+  <text class="ts"  x="366" y="114">lab email to phone</text>
+
+  <rect class="task" x="586" y="48" width="200" height="80"/>
+  <text class="ttb" x="602" y="78">UPLOAD</text>
+  <text class="ts"  x="602" y="98">Drive app →</text>
+  <text class="ts"  x="602" y="114">_dump/&lt;roll-name&gt;</text>
+
+  <path class="seq" d="M292 88 H 344"/>
+  <path class="seq" d="M536 88 H 580"/>
+
+  <!-- ================= LANE 2 : DRIVE ================= -->
+  <g>
+    <path class="store" d="M600 244 h172 v64 a86 12 0 0 1 -172 0 z"/>
+    <ellipse class="store" cx="686" cy="244" rx="86" ry="12"/>
+    <text class="ttb" x="618" y="264">_dump /</text>
+    <text class="ts"  x="618" y="284">Landing zone</text>
+    <text class="ts"  x="618" y="300">self-deletes when empty</text>
+  </g>
+
+  <g>
+    <path class="store" d="M1852 236 h206 v78 a103 12 0 0 1 -206 0 z"/>
+    <ellipse class="store" cx="1955" cy="236" rx="103" ry="12"/>
+    <text class="ttb" x="1872" y="256">&lt;date&gt;_&lt;roll&gt; /</text>
+    <text class="ts"  x="1872" y="276">instagram · strava</text>
+    <text class="ts"  x="1872" y="292">email · web</text>
+    <text class="ts"  x="1872" y="308">manifest · sheet</text>
+  </g>
+
+  <g>
+    <path class="store" d="M2140 250 h180 v58 a90 12 0 0 1 -180 0 z"/>
+    <ellipse class="store" cx="2230" cy="250" rx="90" ry="12"/>
+    <text class="ttb" x="2158" y="270">_originals /</text>
+    <text class="ts"  x="2158" y="290">TIFF masters</text>
+  </g>
+
+  <path class="msgf" d="M686 132 V 228"/>
+  <text class="fl" x="698" y="184">1 · upload</text>
+
+  <!-- ================= LANE 3 : ADA ================= -->
+  <circle class="evTimer" cx="266" cy="544" r="26"/>
+  <circle class="evTimer" cx="266" cy="544" r="19" style="stroke-width:1.6"/>
+  <path d="M266 534 V 544 L 273 550" stroke="#8DC8E8" stroke-width="2.4" fill="none"/>
+  <text class="ts" x="222" y="596">launchd timer</text>
+  <text class="ts" x="230" y="612">every 15 min</text>
+
+  <rect class="taskAuto" x="350" y="504" width="180" height="80"/>
+  <text class="ttb" x="366" y="534">POLL _dump</text>
+  <text class="ts"  x="366" y="554">List roll subfolders</text>
+  <text class="ts"  x="366" y="570">Check file mtime</text>
+
+  <path class="gw" d="M626 544 L 674 496 L 722 544 L 674 592 Z"/>
+  <text class="ttb" x="662" y="551" style="font-size:22px;">×</text>
+  <text class="ts"  x="614" y="618">Settled ≥ 45 s?</text>
+
+  <rect class="taskAuto" x="782" y="504" width="180" height="80"/>
+  <text class="ttb" x="798" y="534">TONE MAP</text>
+  <text class="ts"  x="798" y="554">Luminance → LUT</text>
+  <text class="ts"  x="798" y="570">#1A1812 → #ECE6D6</text>
+
+  <rect class="taskAuto" x="1010" y="504" width="180" height="80"/>
+  <text class="ttb" x="1026" y="534">TRIAGE</text>
+  <text class="ts"  x="1026" y="554">Blank / under / over</text>
+  <text class="ts"  x="1026" y="570">soft — advisory only</text>
+
+  <path class="gw" d="M1286 544 L 1334 496 L 1382 544 L 1334 592 Z"/>
+  <text class="ttb" x="1322" y="551" style="font-size:22px;">×</text>
+  <text class="ts"  x="1276" y="618">Orientation?</text>
+
+  <rect class="taskAuto" x="1442" y="504" width="192" height="80"/>
+  <text class="ttb" x="1458" y="534">RENDER PRESETS</text>
+  <text class="ts"  x="1458" y="554">6–9 formats</text>
+  <text class="ts"  x="1458" y="570">crop / mat / fit</text>
+
+  <rect class="taskAuto" x="1694" y="504" width="192" height="80"/>
+  <text class="ttb" x="1710" y="534">WRITE + ARCHIVE</text>
+  <text class="ts"  x="1710" y="554">manifest.csv (draft)</text>
+  <text class="ts"  x="1710" y="570">move source master</text>
+
+  <rect class="taskAuto" x="1946" y="504" width="192" height="80"/>
+  <text class="ttb" x="1962" y="534">CONTACT SHEET</text>
+  <text class="ts"  x="1962" y="554">Thumbnails + flags</text>
+  <text class="ts"  x="1962" y="570">KEEP / CUT / HOLD</text>
+
+  <circle class="evStart" cx="2280" cy="544" r="26" style="stroke-width:5"/>
+  <text class="ts" x="2236" y="596">Roll complete</text>
+  <text class="ts" x="2242" y="612">no human yet</text>
+
+  <!-- ada sequence flows -->
+  <path class="seqAuto" d="M292 544 H 344"/>
+  <path class="seqAuto" d="M530 544 H 620"/>
+  <path class="seqAuto" d="M722 544 H 776"/>
+  <text class="fl" x="730" y="534">yes</text>
+  <path class="seqAuto" d="M962 544 H 1004"/>
+  <path class="seqAuto" d="M1190 544 H 1280"/>
+  <path class="seqAuto" d="M1382 544 H 1436"/>
+  <text class="fl" x="1390" y="534">landscape 9 · portrait 6</text>
+  <path class="seqAuto" d="M1634 544 H 1688"/>
+  <path class="seqAuto" d="M1886 544 H 1940"/>
+  <path class="seqAuto" d="M2138 544 H 2250"/>
+
+  <!-- wait loop -->
+  <path class="seqAuto" d="M674 592 V 668 H 440 V 590" />
+  <text class="fl" x="480" y="688">no — leave in place, retry next cycle</text>
+
+  <!-- drive reads/writes -->
+  <path class="msgf" d="M686 320 V 498"/>
+  <text class="fl" x="698" y="420">2 · sync down</text>
+
+  <path class="msgf" d="M1830 504 L 1900 326"/>
+  <text class="fl" x="1700" y="404">3 · write exports</text>
+
+  <path class="msgf" d="M1880 520 L 2200 320"/>
+  <text class="fl" x="2040" y="440">4 · archive master</text>
+
+  <!-- ================= LANE 4 : REVIEW ================= -->
+  <rect class="taskMan" x="1694" y="800" width="192" height="80"/>
+  <text class="ttb" x="1710" y="830">REVIEW SHEET</text>
+  <text class="ts"  x="1710" y="850">Cull against rubric</text>
+  <text class="ts"  x="1710" y="866">Check HOLD column</text>
+
+  <path class="gw" d="M1994 840 L 2042 792 L 2090 840 L 2042 888 Z" style="stroke:#C96A2B;"/>
+  <text class="ttb" x="2030" y="847" style="font-size:22px;">×</text>
+  <text class="ts"  x="1980" y="914">Approve?</text>
+
+  <rect class="taskMan" x="2150" y="800" width="180" height="80"/>
+  <text class="ttb" x="2166" y="830">PUBLISH</text>
+  <text class="ts"  x="2166" y="850">Manual post / send</text>
+  <text class="ts"  x="2166" y="866">status → published</text>
+
+  <circle class="evEnd" cx="2440" cy="840" r="24"/>
+
+  <path class="msgf" d="M2040 330 V 786"/>
+  <text class="fl" x="2052" y="620">5 · open sheet</text>
+
+  <path class="seq" d="M1886 840 H 1988"/>
+  <path class="seq" d="M2090 840 H 2144"/>
+  <text class="fl" x="2098" y="830">yes</text>
+  <path class="seq" d="M2330 840 H 2412"/>
+
+  <path class="seq" d="M2042 888 V 934 H 1790 V 886"/>
+  <text class="fl" x="1830" y="954">no — hold or discard</text>
+
+  <!-- ================= LEGEND ================= -->
+  <line x1="0" y1="1010" x2="2572" y2="1010" stroke="#3A362E" stroke-width="2"/>
+  <text class="laneTxt" x="0" y="1050" style="font-size:22px;">LEGEND — BPMN 2.0</text>
+
+  <circle class="evStart" cx="26" cy="1096" r="18"/>
+  <text class="tt" x="60" y="1102">Start event</text>
+
+  <g><circle class="evTimer" cx="230" cy="1096" r="18"/><circle class="evTimer" cx="230" cy="1096" r="13" style="stroke-width:1.4"/></g>
+  <text class="tt" x="264" y="1102">Timer event</text>
+
+  <circle class="evEnd" cx="450" cy="1096" r="16"/>
+  <text class="tt" x="484" y="1102">End event</text>
+
+  <rect class="task" x="660" y="1078" width="46" height="36"/>
+  <text class="tt" x="722" y="1102">Task</text>
+
+  <path class="gw" d="M840 1096 L 866 1070 L 892 1096 L 866 1122 Z"/>
+  <text class="tt" x="908" y="1102">Exclusive gateway</text>
+
+  <g><path class="store" d="M1130 1084 h44 v26 a22 6 0 0 1 -44 0 z"/><ellipse class="store" cx="1152" cy="1084" rx="22" ry="6"/></g>
+  <text class="tt" x="1190" y="1102">Data store</text>
+
+  <path class="seqAuto" d="M1340 1096 H 1392"/>
+  <text class="tt" x="1406" y="1102">Automated sequence flow</text>
+
+  <path class="seq" d="M1720 1096 H 1772"/>
+  <text class="tt" x="1786" y="1102">Manual sequence flow</text>
+
+  <path class="msgf" d="M2080 1096 H 2132"/>
+  <text class="tt" x="2146" y="1102">Data / message flow</text>
+
+  <rect class="taskAuto" x="0" y="1150" width="46" height="30"/>
+  <text class="tt" x="62" y="1172">Sky border — runs unattended, no human in the loop</text>
+
+  <rect class="taskMan" x="900" y="1150" width="46" height="30"/>
+  <text class="tt" x="962" y="1172">Ember border — human decision required, never automated</text>
+
+  <text class="ts" x="1820" y="1172">Flows 1–5 show ordering for a single roll.</text>
+  <text class="ts" x="1820" y="1194">Lane 3 executes with no operator present.</text>
+</svg>
+
+<div class="meta">Catskills Cycling Club, Inc. &nbsp;·&nbsp; internal technical documentation &nbsp;·&nbsp; not for publication</div>
+</div></body></html>

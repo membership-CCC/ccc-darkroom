@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  TEMPLATE — __HOME__ is substituted by install_launchd.sh.
+  Do not hand-edit and copy this into ~/Library/LaunchAgents yourself; a
+  malformed plist is the usual cause of "load failed".
+
+  v3/v4: this runs the full CYCLE (curate -> render -> contact sheet), not
+  the renderer on its own. darkroom.py alone would silently fall back to v2
+  orientation-bucket rules, because no curation plan would ever be written.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ccc.darkroom</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>__HOME__/CCC/Darkroom/bin/darkroom_cycle.sh</string>
+    </array>
+
+    <!-- every 15 minutes -->
+    <key>StartInterval</key>
+    <integer>900</integer>
+
+    <!-- also fire once on load, so a deploy can be verified immediately -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>__HOME__/CCC/Darkroom/logs/darkroom.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/CCC/Darkroom/logs/darkroom.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>__HOME__/CCC/Darkroom</string>
+
+    <key>LowPriorityIO</key>
+    <true/>
+    <key>Nice</key>
+    <integer>5</integer>
+</dict>
+</plist>

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  TEMPLATE — __HOME__ is substituted by install_launchd.sh.
+
+  darkroom_learn.py calibrates the ADVISORY thresholds inside darkroom.py,
+  which the v3 curator largely bypasses. It is kept because decisions.txt is
+  the only record of what you actually published, and that is the ground
+  truth the curator's gates would eventually be tuned against.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ccc.darkroom.learn</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>__HOME__/CCC/Darkroom/bin/darkroom_learn.py</string>
+        <string>--write</string>
+    </array>
+
+    <!-- Sundays at 20:00 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key><integer>0</integer>
+        <key>Hour</key><integer>20</integer>
+        <key>Minute</key><integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>__HOME__/CCC/Darkroom/logs/learn.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/CCC/Darkroom/logs/learn.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>__HOME__/CCC/Darkroom</string>
+
+    <key>LowPriorityIO</key>
+    <true/>
+    <key>Nice</key>
+    <integer>10</integer>
+</dict>
+</plist>
