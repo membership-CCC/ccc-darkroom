@@ -17,7 +17,11 @@ fi
 shopt -s nullglob
 for roll in "$DUMP"/*/; do
   name="$(basename "$roll")"
-  case "$name" in .*) continue ;; esac
+  # Skip dot-dirs and the xArchive bin (test material staged for real deletion
+  # later). Lowercased so the match is case-insensitive, matching NOT_A_ROLL
+  # in darkroom.py and darkroom_curate.py.
+  lname="$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')"
+  case "$lname" in .*|xarchive) continue ;; esac
   if [ -f "$roll/_curation.json" ]; then
     echo "-- $name already curated, skipping judgment"
     continue

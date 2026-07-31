@@ -390,6 +390,32 @@ Now `chmod 755` explicitly, with a writability assertion.
 
 ---
 
+## Local conventions the tools must respect
+
+**`xArchive` is a bin, not an archive.** Folders named `xArchive` exist inside
+`Photos/` and `_originals/` (and may appear in `_dump/`) as a staging area for
+test material intended for real deletion later. It is a hand-rolled trash can,
+not a store of finished work.
+
+The pipeline now skips it everywhere a roll is enumerated — `NOT_A_ROLL` in
+`darkroom.py`, `darkroom_curate.py` and `analyze_run.py`, and a lowercased
+`case` guard in `darkroom_cycle.sh`, all case-insensitive. Before that:
+
+- test images binned into `_dump/xArchive/` would have been processed straight
+  back out on the next cycle;
+- `analyze_run.py` with no argument picked `xArchive` as the newest roll.
+
+**`darkroom_learn.py` deliberately does not skip it**, because it never looks
+in the bin in the first place — it reads `decisions.txt` from live rolls under
+`Photos/` only. That is correct and must stay that way: decisions recorded
+against discarded test material would poison the calibration data, which is
+the one thing in this system built from real human judgment.
+
+If another bin name is ever adopted, it has to be added to `NOT_A_ROLL` **and**
+to the `case` guard in `darkroom_cycle.sh` — two places, in two languages.
+
+---
+
 ## Known limits and open questions
 
 **HOLD calibration is still unverified.** Zero frames were held across both

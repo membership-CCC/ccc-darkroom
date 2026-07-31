@@ -65,6 +65,16 @@ STATE_DIR = HOME / "CCC" / "Darkroom" / ".state"
 PLAN_NAME = "_curation.json"
 HOLD_DIRNAME = "_hold"
 
+# Directories that are never rolls. `xArchive` is the convention for a bin of
+# test material staged for real deletion later — processing it would resurrect
+# work that was deliberately thrown away. Compared case-insensitively.
+NOT_A_ROLL = {"xarchive"}
+
+
+def is_roll_dir(p) -> bool:
+    return p.is_dir() and not p.name.startswith(".") and p.name.lower() not in NOT_A_ROLL
+
+
 # --- brand tone -----------------------------------------------------------
 INK = (26, 24, 18)        # #1A1812
 OAT = (236, 230, 214)     # #ECE6D6
@@ -704,8 +714,7 @@ def main() -> int:
         LOG.warning("%d file(s) loose in the dump root — put them in a named "
                     "subfolder so they get a roll label", len(loose))
 
-    dirs = [d for d in sorted(inbox.iterdir())
-            if d.is_dir() and not d.name.startswith(".")]
+    dirs = [d for d in sorted(inbox.iterdir()) if is_roll_dir(d)]
     if not dirs:
         LOG.info("nothing to do")
         return 0

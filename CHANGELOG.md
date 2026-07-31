@@ -10,6 +10,31 @@ it is v2, whatever the filename claims. Secondary check: `darkroom.py` is
 
 ---
 
+## Unreleased — 31 July 2026
+
+**`xArchive` is now recognised as a bin, not a roll.**
+
+The convention on Ada is that `xArchive` folders sit inside `Photos/`,
+`_originals/` and potentially `_dump/`, holding test material staged for real
+deletion later. Nothing in the pipeline knew that, and two things followed:
+
+- `darkroom.py` and `darkroom_curate.py` treat every non-dotted directory in
+  `_dump` as a roll. Dropping test images into `_dump/xArchive/` to bin them
+  would have had the next cycle process them straight back out — resurrecting
+  work that was deliberately thrown away.
+- `analyze_run.py` with no argument picks the newest directory under
+  `_originals`, which was `xArchive` itself.
+
+Both now skip it, via a shared `NOT_A_ROLL` set compared case-insensitively
+(`darkroom.py`, `darkroom_curate.py`, `analyze_run.py`) and a matching
+lowercased `case` guard in `darkroom_cycle.sh`.
+
+Deliberately *not* changed: `darkroom_learn.py` still reads `decisions.txt`
+only from live rolls under `Photos/`. Since binned rolls are discarded test
+material, their decisions must never reach the calibration data.
+
+---
+
 ## v4 package — 31 July 2026
 
 The first package that actually deploys the v3 curator. Deployed to Ada and

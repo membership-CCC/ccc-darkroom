@@ -69,6 +69,16 @@ CACHE_DIR = DARKROOM / ".state" / "llm_cache"
 SOURCE_EXTS = {".tif", ".tiff", ".png", ".jpg", ".jpeg", ".webp"}
 PLAN_NAME = "_curation.json"
 
+# Directories that are never rolls. `xArchive` is the convention for a bin of
+# test material staged for real deletion later — processing it would resurrect
+# work that was deliberately thrown away. Compared case-insensitively.
+NOT_A_ROLL = {"xarchive"}
+
+
+def is_roll_dir(p) -> bool:
+    return p.is_dir() and not p.name.startswith(".") and p.name.lower() not in NOT_A_ROLL
+
+
 # Model used for the judgment layer. Run --selftest to list what your account
 # actually has, then set this to one of those IDs.
 MODEL = "claude-sonnet-5"
@@ -804,7 +814,7 @@ def main() -> int:
     if folder is None:
         if not INBOX.is_dir():
             sys.exit(f"no inbox at {INBOX}")
-        rolls = [d for d in INBOX.iterdir() if d.is_dir() and not d.name.startswith(".")]
+        rolls = [d for d in INBOX.iterdir() if is_roll_dir(d)]
         if not rolls:
             sys.exit(f"no rolls in {INBOX}")
         folder = max(rolls, key=lambda d: d.stat().st_mtime)

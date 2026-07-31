@@ -42,6 +42,16 @@ PLAN_NAME = "_curation.json"
 HOLD_DIRNAME = "_hold"
 SOURCE_EXTS = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp"}
 
+# Directories that are never rolls. `xArchive` is the convention for a bin of
+# test material staged for real deletion later — processing it would resurrect
+# work that was deliberately thrown away. Compared case-insensitively.
+NOT_A_ROLL = {"xarchive"}
+
+
+def is_roll_dir(p) -> bool:
+    return p.is_dir() and not p.name.startswith(".") and p.name.lower() not in NOT_A_ROLL
+
+
 # Mirrored from darkroom.py so the numbers are the real ones.
 PRESETS = {
     "ig_portrait":  dict(w=1080, h=1350, mode="crop", dir="instagram"),
@@ -105,13 +115,13 @@ def pick_roll(arg: str | None) -> Path:
         p = ORIGINALS / arg
         if not p.is_dir():
             avail = sorted(d.name for d in ORIGINALS.iterdir()
-                           if d.is_dir()) if ORIGINALS.is_dir() else []
+                           if is_roll_dir(d)) if ORIGINALS.is_dir() else []
             msg = f"no such roll under _originals: {arg}"
             if avail:
                 msg += "\navailable: " + ", ".join(avail)
             sys.exit(msg)
         return p
-    rolls = [d for d in ORIGINALS.iterdir() if d.is_dir()] if ORIGINALS.is_dir() else []
+    rolls = [d for d in ORIGINALS.iterdir() if is_roll_dir(d)] if ORIGINALS.is_dir() else []
     if not rolls:
         sys.exit(f"no rolls found under {ORIGINALS}")
     return max(rolls, key=lambda d: d.stat().st_mtime)
