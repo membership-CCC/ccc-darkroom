@@ -405,12 +405,31 @@ def load_plan(roll_dir: Path, ignore: bool) -> dict:
 # processing
 # ===========================================================================
 
+
+# Google Drive's filesystem intermittently refuses a directory listing while it
+# is still materialising files, raising OSError EDEADLK ("Resource deadlock
+# avoided") — observed on a 67-frame roll mid-sync. It clears on its own, so a
+# short retry is the honest response; a crash is not.
+def listdir_retry(d: Path, attempts: int = 4, pause: float = 2.0) -> list:
+    for i in range(attempts):
+        try:
+            return list(d.iterdir())
+        except OSError as exc:
+            if i == attempts - 1:
+                raise
+            LOG.warning("listing %s failed (%s) — retry %d/%d in %.0fs",
+                        d.name, exc.strerror or exc, i + 1, attempts - 1, pause)
+            time.sleep(pause)
+            pause *= 2
+    return []
+
+
 def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
                  ignore_curation: bool) -> int:
     date_str, slug = parse_roll(roll_dir.name)
     key = f"{date_str}_{slug}"
 
-    sources = sorted(p for p in roll_dir.iterdir()
+    sources = sorted(p for p in listdir_retry(roll_dir)
                      if p.is_file() and p.suffix.lower() in SOURCE_EXTS
                      and not p.name.startswith("."))
     if not sources:
@@ -719,9 +738,19 @@ def main() -> int:
         LOG.info("nothing to do")
         return 0
 
-    total = sum(process_roll(d, a.dry_run, a.force, only, a.ignore_curation)
-                for d in dirs)
-    LOG.info("done — %d frame(s)", total)
+    # One bad roll must not abort the cycle. Before this, an OSError on the
+    # first roll's listing killed the whole run and the second roll was never
+    # attempted, even though it was perfectly readable.
+    total, failed = 0, []
+    for d in dirs:
+        try:
+            total += process_roll(d, a.dry_run, a.force, only, a.ignore_curation)
+        except Exception as exc:                        # noqa: BLE001
+            LOG.error("[%s] roll failed, left in place for the next cycle: %s",
+                      d.name, exc)
+            failed.append(d.name)
+    LOG.info("done — %d frame(s)%s", total,
+             f", {len(failed)} roll(s) deferred: {', '.join(failed)}" if failed else "")
     return 0
 
 

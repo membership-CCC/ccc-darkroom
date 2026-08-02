@@ -50,6 +50,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -687,9 +688,25 @@ def merge(h: dict, l: dict | None, iw: int, ih: int) -> dict:
 
 # ===========================================================================
 
+def listdir_retry(d: Path, attempts: int = 4, pause: float = 2.0) -> list:
+    """Drive's filesystem can refuse a listing mid-sync with OSError EDEADLK.
+    It clears on its own; retry rather than failing the roll."""
+    for i in range(attempts):
+        try:
+            return list(d.iterdir())
+        except OSError as exc:
+            if i == attempts - 1:
+                raise
+            print(f"  listing {d.name} failed ({exc.strerror or exc}) — "
+                  f"retry {i + 1}/{attempts - 1} in {pause:.0f}s", file=sys.stderr)
+            time.sleep(pause)
+            pause *= 2
+    return []
+
+
 def curate_dir(folder: Path, backend, key: str | None, use_cache: bool,
                verbose: bool) -> dict:
-    srcs = sorted(p for p in folder.iterdir()
+    srcs = sorted(p for p in listdir_retry(folder)
                   if p.is_file() and p.suffix.lower() in SOURCE_EXTS
                   and not p.name.startswith("."))
     if not srcs:

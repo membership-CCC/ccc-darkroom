@@ -10,6 +10,37 @@ it is v2, whatever the filename claims. Secondary check: `darkroom.py` is
 
 ---
 
+## Unreleased — 2 August 2026
+
+**Drive listing failures no longer abort the cycle.**
+
+First real roll (67 frames across two folders, ~250 MB) failed to process.
+Google Drive's filesystem refused the directory listing while still
+materialising the files:
+
+```
+OSError: [Errno 11] Resource deadlock avoided: .../_dump/2026-08-01_Borderlands_Don
+```
+
+Drive was reporting nonsense metadata for those folders at the time — link
+count 65535, directory size 2 MB — and `find` walked them without complaint
+once sync settled. So the condition is transient, but two things made it far
+worse than it needed to be:
+
+- **No retry.** A listing that would have succeeded seconds later killed the
+  attempt outright. `listdir_retry()` now retries four times with exponential
+  backoff (2s, 4s, 8s) in both `darkroom.py` and `darkroom_curate.py`.
+- **No per-roll isolation.** `main()` ran `sum(process_roll(d) for d in dirs)`,
+  so the first roll's OSError killed the generator and the second roll was
+  never attempted — even though it was perfectly readable. Each roll is now
+  wrapped individually; a failed one is logged, left in `_dump` for the next
+  cycle, and the others still render.
+
+The renderer's non-destructive contract means a deferred roll loses nothing:
+sources stay in `_dump` and are retried on the next 15-minute cycle.
+
+---
+
 ## Unreleased — 31 July 2026
 
 **`xArchive` is now recognised as a bin, not a roll.**

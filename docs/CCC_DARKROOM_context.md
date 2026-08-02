@@ -416,6 +416,39 @@ to the `case` guard in `darkroom_cycle.sh` — two places, in two languages.
 
 ---
 
+## Google Drive's filesystem is not a reliable POSIX filesystem
+
+Treat every directory listing under `CloudStorage/` as something that can fail
+transiently. Observed on the first real roll (67 frames, ~250 MB, 2 Aug 2026):
+
+```
+OSError: [Errno 11] Resource deadlock avoided: .../_dump/2026-08-01_Borderlands_Don
+```
+
+At the time Drive reported link count **65535** and a directory size of **2 MB**
+for those folders — both meaningless. Minutes later `find` traversed them
+without complaint. DriveFS refuses `readdir` while it is still materialising a
+folder's contents, and recovers on its own.
+
+Consequences now handled, and which any new code touching Drive must respect:
+
+- **Retry, don't crash.** `listdir_retry()` in `darkroom.py` and
+  `darkroom_curate.py` retries four times with exponential backoff.
+- **Isolate per roll.** One unreadable roll must never abort the cycle. This
+  bit once: an OSError on the first roll killed the whole render pass and the
+  second, perfectly readable roll was never attempted.
+- **Deferral is safe.** Failure is non-destructive by design — sources stay in
+  `_dump` and are retried on the next cycle. A deferred roll is a delay, not a
+  loss.
+
+Related, same root cause: **a large upload takes materially longer to become
+readable than it does to appear.** The folder shows in Finder and in the Drive
+app almost immediately; the bytes land much later. `SETTLE_SECONDS` (45) guards
+against a partially-written *file*, not against a partially-materialised
+*folder*.
+
+---
+
 ## Known limits and open questions
 
 **HOLD calibration is still unverified.** Zero frames were held across both
