@@ -332,8 +332,25 @@ def window_for(iw: int, ih: int, ratio: float, box: tuple):
 # layer 1 — heuristic judgment (always runs; the floor if the LLM is off)
 # ===========================================================================
 
-SIGNAGE_HINTS = ("st", "rd", "ave", "route", "rt", "trail", "road", "lane",
-                 "km", "mi", "exit", "welcome", "town", "village", "county")
+# Locational text is a *construction*, not a vocabulary. Matching bare words
+# held a frame because a jersey read "ALL ROAD APPAREL" — "road" is only
+# locational next to a name or a number. A street sign says "Platte Clove Rd";
+# a brand says "All Road Apparel", and only one of those tells a stranger
+# where the club rides.
+ROAD_TYPES = r"(?:st|street|rd|road|ave|avenue|dr|drive|ln|lane|way|blvd|hwy|highway|trail|turnpike|pike)"
+NUMBERED = r"(?:route|rte|rt|hwy|highway|county\s+(?:road|route|rd)|cr|exit|mile|km|mi)"
+
+LOCATIONAL_RE = re.compile(
+    # a name followed by a road type, where the road type ENDS the phrase or
+    # is followed by a direction or number. "PLATTE CLOVE RD" is a street sign;
+    # "ALL ROAD APPAREL" is a jersey, and the difference is what comes after.
+    rf"\b[A-Za-z][A-Za-z'\-]{{2,}}\s+{ROAD_TYPES}(?:\s+[NSEW]\b|\s+\d|\s*[,.]|\s*$)"
+    # a route/exit/mile marker with a number — "Route 28", "EXIT 19"
+    rf"|\b{NUMBERED}\s*\.?\s*#?\s*\d+"
+    # place-boundary signage — "Welcome to Windsor", "Town of Olive"
+    r"|\bwelcome\s+to\b"
+    r"|\b(?:town|village|city|county|hamlet)\s+of\b",
+    re.IGNORECASE)
 
 
 def heuristic_judge(m: dict, a: dict, iw: int, ih: int) -> dict:
@@ -377,8 +394,7 @@ def heuristic_judge(m: dict, a: dict, iw: int, ih: int) -> dict:
     # — which meant nearly every frame got held, and a flag that fires on
     # everything is a flag nobody reads. Route-safety has to stay meaningful.
     texts = [t["text"] for t in (a.get("text") or [])]
-    hits = [t for t in texts if any(re.search(rf"\b{h}\b", t.lower())
-                                    for h in SIGNAGE_HINTS)]
+    hits = [t for t in texts if LOCATIONAL_RE.search(t)]
     hold = bool(hits)
     hold_why = f"locational text detected: {hits[:3]}" if hits else ""
 

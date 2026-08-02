@@ -10,6 +10,34 @@ it is v2, whatever the filename claims. Secondary check: `darkroom.py` is
 
 ---
 
+## Unreleased — 2 August 2026 (g)
+
+**HOLD's text heuristic matched words, not locations.**
+
+First real ride roll held 7 of 66 frames. Six were the judgment layer working
+exactly as intended — the Windsor Festival poster, "Smith's Deli & Mart", the
+STATE marquee, "Seasonal Limited Use Highway", "Country Cream". The seventh
+was the measurement heuristic firing on a jersey that read
+**"ALL ROAD APPAREL"**, because `road` was in a flat list of signage words.
+
+That is the same failure that once held 6 of 7 frames on cap embroidery,
+surviving in a narrower form. Locational text is a *construction*, not a
+vocabulary: "Platte Clove Rd" is a street sign, "All Road Apparel" is a brand,
+and the difference is what surrounds the word. The heuristic now requires
+
+- a name followed by a road type that **ends** the phrase or is followed by a
+  direction or number — `PLATTE CLOVE RD`, `Old Mill Rd N`
+- a route, exit or mile marker with a number — `Route 28`, `EXIT 19`
+- place-boundary phrasing — `Welcome to …`, `Town of …`
+
+19 cases pass, including every real string from this roll.
+
+Deliberately unchanged: **HOLD remains a union.** The fix makes the heuristic
+more accurate rather than letting the model overrule it. A crude proxy that
+fires on brand text should be sharpened, not silenced.
+
+---
+
 ## Unreleased — 2 August 2026 (f)
 
 **Credit sized against the real viewing condition. Third attempt.**
