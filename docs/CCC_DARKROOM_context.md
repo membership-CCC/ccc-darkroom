@@ -516,6 +516,13 @@ keep it idempotent — but the artefacts around it were not:
 
 The general rule: **the last write must not assume it is the only write.**
 
+A corollary, learned the hard way: **the same file legitimately comes back
+round.** `retest_roll.sh` copies originals out of `_originals` into `_dump` and
+the renderer moves them back, so a name clash in the archive is usually the
+same photograph returning, not a conflict. A guard that suffixed every clash
+doubled the archive on the first real re-test. Compare content before assuming
+a collision is real.
+
 ---
 
 ## Known limits and open questions

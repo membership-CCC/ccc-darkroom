@@ -381,6 +381,31 @@ def parse_roll(name: str) -> tuple[str, str, str | None]:
     return date_str, slugify(label), credit
 
 
+def same_file(a: Path, b: Path) -> bool:
+    """Cheap content equality: size, then a hash of the head and tail.
+
+    Enough to tell "this is the same photograph coming back through the dump"
+    from "two photographers used the same filename", without reading hundreds
+    of megabytes on every cycle.
+    """
+    try:
+        if a.stat().st_size != b.stat().st_size:
+            return False
+    except OSError:
+        return False
+    try:
+        h = []
+        for p in (a, b):
+            with p.open("rb") as fh:
+                head = fh.read(262144)
+                fh.seek(max(0, p.stat().st_size - 262144))
+                tail = fh.read(262144)
+            h.append(hashlib.sha1(head + tail).hexdigest())
+        return h[0] == h[1]
+    except OSError:
+        return False
+
+
 def fingerprint(p: Path) -> str:
     st = p.stat()
     return hashlib.sha1(f"{p.name}|{st.st_size}|{int(st.st_mtime)}".encode()).hexdigest()[:16]
@@ -582,17 +607,25 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
             continue
 
         orig_dir.mkdir(parents=True, exist_ok=True)
-        # Merged rolls put two photographers' sources in one archive, so a
-        # name clash is now possible. Never overwrite an original.
+        # Merged rolls put two photographers' sources in one archive, so a name
+        # clash is possible. Never overwrite a *different* original — but the
+        # common case is the same file coming back round: retest_roll.sh copies
+        # from _originals into _dump and the renderer moves it back. Suffixing
+        # that would double the archive on every re-test, which it did once.
         dest = orig_dir / src.name
         if dest.exists():
-            i = 2
-            while dest.exists():
-                dest = orig_dir / f"{src.stem}__{i}{src.suffix}"
-                i += 1
-            LOG.warning("[%s] %s already archived under that name — saved as %s",
-                        key, src.name, dest.name)
-        shutil.move(str(src), str(dest))
+            if same_file(src, dest):
+                shutil.move(str(src), str(dest))          # identical, replace
+            else:
+                i = 2
+                while dest.exists():
+                    dest = orig_dir / f"{src.stem}__{i}{src.suffix}"
+                    i += 1
+                LOG.warning("[%s] a different %s is already archived — saved as %s",
+                            key, src.name, dest.name)
+                shutil.move(str(src), str(dest))
+        else:
+            shutil.move(str(src), str(dest))
 
         stamp = dt.datetime.now().isoformat(timespec="seconds")
         state[fp] = {"seq": seq, "source": src.name, "processed_at": stamp}

@@ -10,6 +10,26 @@ it is v2, whatever the filename claims. Secondary check: `darkroom.py` is
 
 ---
 
+## Unreleased — 2 August 2026 (e)
+
+**Collision-safety no longer duplicates the archive on every re-test.**
+
+Introduced two commits earlier and caught on the first real use: `retest_roll.sh`
+copies originals from `_originals` into `_dump`, and the renderer moves them
+back — so the "never overwrite an original" guard suffixed all 66 frames as
+`__2` and doubled the archive.
+
+The guard now compares content first (size, then a hash of the head and tail —
+enough to distinguish "same photograph coming back round" from "two
+photographers used the same filename" without reading hundreds of megabytes).
+Identical files replace silently; genuinely different ones still suffix, with a
+warning that now says *a different* file is already archived.
+
+Cleaning up the `__2` copies from the 2 Aug re-test is safe — they are
+byte-identical duplicates.
+
+---
+
 ## Unreleased — 2 August 2026 (d)
 
 **The credit was invisible on real photographs. Retuned against them.**
