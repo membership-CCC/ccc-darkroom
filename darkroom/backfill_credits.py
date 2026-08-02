@@ -27,6 +27,14 @@ Frames it cannot attribute are listed, not filled in.
     python3 backfill_credits.py 2026-08-01_borderlands
     python3 backfill_credits.py 2026-08-01_borderlands --write
     python3 backfill_credits.py --all
+
+Once a roll has a ledger, --reorganize files its frames into
+_originals/<roll>/by_<handle>/ — the layout darkroom.py writes now, and the one
+retest_roll.sh stages back from. Existing rolls were archived flat; this is the
+one-time migration.
+
+    python3 backfill_credits.py 2026-08-01_borderlands --reorganize
+    python3 backfill_credits.py 2026-08-01_borderlands --reorganize --write
 """
 
 from __future__ import annotations
@@ -45,6 +53,24 @@ CREDITS_NAME = "_credits.json"
 SOURCE_EXTS = {".tif", ".tiff", ".png", ".jpg", ".jpeg", ".webp"}
 
 BY_RE = re.compile(r"^(.*)_by_(.+)$", re.IGNORECASE)
+CREDIT_DIR_PREFIX = "by_"
+
+
+def credit_subdir(handle: str) -> str:
+    return CREDIT_DIR_PREFIX + str(handle).lstrip("@").strip().lower()
+
+
+def archived_frames(orig: Path) -> list:
+    """Every source frame in a roll, roll root and by_<handle>/ alike."""
+    out = [p for p in orig.iterdir()
+           if p.is_file() and p.suffix.lower() in SOURCE_EXTS
+           and not p.name.startswith(".")]
+    for d in sorted(orig.iterdir()):
+        if d.is_dir() and d.name.lower().startswith(CREDIT_DIR_PREFIX):
+            out += [p for p in d.iterdir()
+                    if p.is_file() and p.suffix.lower() in SOURCE_EXTS
+                    and not p.name.startswith(".")]
+    return sorted(out, key=lambda p: p.name)
 
 
 def handle_from_folder(name: str) -> str | None:
@@ -122,9 +148,7 @@ def backfill(roll: str, write: bool) -> int:
         print(f"!! no originals at {orig}")
         return 1
 
-    archived = sorted(p.name for p in orig.iterdir()
-                      if p.is_file() and p.suffix.lower() in SOURCE_EXTS
-                      and not p.name.startswith("."))
+    archived = [p.name for p in archived_frames(orig)]
     print(f"\n== {roll} ==")
     print(f"   {len(archived)} archived frame(s)")
 
@@ -179,12 +203,101 @@ def backfill(roll: str, write: bool) -> int:
     return 0
 
 
+def reorganize(roll: str, write: bool) -> int:
+    """Move a flat archive into by_<handle>/ subfolders, per the ledger.
+
+    Moves only frames the ledger names. Anything uncredited stays in the roll
+    root, which is where the renderer puts uncredited frames anyway. Refuses to
+    overwrite: if the destination already holds a file of that name, the frame
+    is left where it is and reported, because two files with one name is
+    exactly the ambiguity this layout exists to prevent.
+    """
+    orig = ORIGINALS / roll
+    ledger_path = orig / CREDITS_NAME
+    if not orig.is_dir():
+        print(f"!! no originals at {orig}")
+        return 1
+    try:
+        ledger = json.loads(ledger_path.read_text())
+    except (OSError, ValueError):
+        print(f"!! no readable {CREDITS_NAME} in {orig}")
+        print("   Run the backfill first, without --reorganize.")
+        return 1
+
+    by_base = {str(k).rsplit("/", 1)[-1]: str(v) for k, v in ledger.items() if v}
+    loose = [p for p in orig.iterdir()
+             if p.is_file() and p.suffix.lower() in SOURCE_EXTS
+             and not p.name.startswith(".")]
+
+    moves, blocked, uncredited = [], [], []
+    for f in sorted(loose, key=lambda p: p.name):
+        handle = by_base.get(f.name)
+        if not handle:
+            uncredited.append(f.name)
+            continue
+        dest = orig / credit_subdir(handle) / f.name
+        if dest.exists():
+            blocked.append(f.name)
+            continue
+        moves.append((f, dest, handle))
+
+    print(f"\n== {roll} — reorganize ==")
+    already = sum(1 for d in orig.iterdir()
+                  if d.is_dir() and d.name.lower().startswith(CREDIT_DIR_PREFIX))
+    if already:
+        print(f"   {already} by_* folder(s) already present")
+    counts: dict[str, int] = {}
+    for _, _, h in moves:
+        counts[h] = counts.get(h, 0) + 1
+    if counts:
+        print(f"   {len(moves)} frame(s) to move:")
+        for h, n in sorted(counts.items(), key=lambda kv: -kv[1]):
+            print(f"      {credit_subdir(h) + '/':<32} {n}")
+    else:
+        print("   nothing loose to move")
+    if uncredited:
+        print(f"   {len(uncredited)} uncredited frame(s) stay in the roll root")
+    if blocked:
+        print(f"   !! {len(blocked)} blocked — a file of that name is already filed:")
+        for n in blocked[:10]:
+            print(f"      {n}")
+
+    if not write:
+        print("\n   dry run — nothing moved. Re-run with --write.")
+        return 0
+
+    done = 0
+    for src, dest, _ in moves:
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            src.replace(dest)
+            done += 1
+        except OSError as exc:                         # noqa: BLE001
+            print(f"   !! {src.name}: {exc}")
+
+    # Re-key the ledger to match: "by_handle/name" is what darkroom.py writes.
+    rekeyed = {}
+    for k, v in ledger.items():
+        base = str(k).rsplit("/", 1)[-1]
+        sub = orig / credit_subdir(v) / base
+        rekeyed[f"{credit_subdir(v)}/{base}" if sub.exists() else base] = v
+    tmp = ledger_path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(rekeyed, indent=2, sort_keys=True) + "\n")
+    tmp.replace(ledger_path)
+
+    print(f"\n   moved {done} frame(s); {CREDITS_NAME} re-keyed")
+    print("   Re-render with:  retest_roll.sh " + roll)
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("roll", nargs="?", help="roll folder name under _originals")
     ap.add_argument("--all", action="store_true", help="every roll in _originals")
     ap.add_argument("--write", action="store_true", help="actually save the file")
+    ap.add_argument("--reorganize", action="store_true",
+                    help="file frames into by_<handle>/ subfolders per the ledger")
     args = ap.parse_args()
 
     if not ORIGINALS.is_dir():
@@ -206,7 +319,8 @@ def main() -> int:
 
     rc = 0
     for roll in rolls:
-        rc |= backfill(roll, args.write)
+        rc |= (reorganize(roll, args.write) if args.reorganize
+               else backfill(roll, args.write))
     return rc
 
 

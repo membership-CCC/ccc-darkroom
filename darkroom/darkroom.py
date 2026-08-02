@@ -76,6 +76,26 @@ PLAN_NAME = "_curation.json"
 # exactly this — then produced uncredited exports. The ledger is the durable
 # record. Plain JSON, keyed by original filename, safe to hand-edit.
 CREDITS_NAME = "_credits.json"
+# Each photographer's frames are archived in their own subfolder,
+# _originals/<roll>/by_<handle>/. Three reasons, in order of how much they
+# cost when absent:
+#   1. retest_roll.sh can stage them back as <roll>_by_<handle> — the exact
+#      shape they arrived in — so a re-render reads credit from the folder
+#      name, the same path as a fresh ingest. No special case to forget.
+#   2. two photographers can no longer collide on a filename. The __2
+#      suffixing that once doubled the archive is unreachable.
+#   3. it answers "whose is this?" in the Finder, without a tool.
+# Frames with no credit stay in the roll root.
+CREDIT_DIR_PREFIX = "by_"
+
+
+def credit_subdir(handle: str) -> str:
+    """"@donalrey" -> "by_donalrey". Mirrors the _by_ dump-folder convention."""
+    return CREDIT_DIR_PREFIX + str(handle).lstrip("@").strip().lower()
+
+
+def is_credit_dir(p) -> bool:
+    return p.is_dir() and p.name.lower().startswith(CREDIT_DIR_PREFIX)
 HOLD_DIRNAME = "_hold"
 
 # Directories that are never rolls. `xArchive` is the convention for a bin of
@@ -404,6 +424,25 @@ def load_credit_ledger(key: str) -> dict:
     return {str(k): str(v) for k, v in data.items() if v}
 
 
+def ledger_by_basename(ledger: dict) -> dict:
+    """Basename -> handle, for looking up a frame staged out of a subfolder.
+
+    Keys written since the archive gained per-photographer subfolders are
+    relative paths ("by_donalrey/x.jpg"); older ones are bare filenames. A
+    basename that is ambiguous across two photographers is dropped rather than
+    guessed at — a mis-attributed credit is worse than none.
+    """
+    seen, out = {}, {}
+    for k, v in ledger.items():
+        base = k.rsplit("/", 1)[-1]
+        if base in seen and seen[base] != v:
+            out.pop(base, None)
+            continue
+        seen[base] = v
+        out[base] = v
+    return out
+
+
 def save_credit_ledger(key: str, additions: dict) -> None:
     """Merge new frame->handle pairs into the roll's ledger.
 
@@ -459,8 +498,22 @@ def same_file(a: Path, b: Path) -> bool:
 
 
 def fingerprint(p: Path) -> str:
+    """Identity of a source frame, for "have I already processed this?".
+
+    The containing folder is part of it. Two photographers on the same ride can
+    both hand over an IMG_0001.jpg; without the folder, whichever was processed
+    second matched the first's fingerprint and was silently skipped — the frame
+    simply never appeared, with no warning. Observed in test with two solid
+    frames of equal size written in the same second.
+
+    Including the folder is safe for idempotence because the round-trip is
+    symmetric: retest_roll.sh stages by_<handle>/ back into
+    <roll>_by_<handle>/, the same folder name the frame arrived in, and cp -p
+    preserves mtime. The same file coming back round still matches itself.
+    """
     st = p.stat()
-    return hashlib.sha1(f"{p.name}|{st.st_size}|{int(st.st_mtime)}".encode()).hexdigest()[:16]
+    raw = f"{p.parent.name}/{p.name}|{st.st_size}|{int(st.st_mtime)}"
+    return hashlib.sha1(raw.encode()).hexdigest()[:16]
 
 
 def load_state(key: str) -> dict:
@@ -553,7 +606,7 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
     # The folder name is authoritative when it carries "_by_". When it does not
     # — a re-render staged out of the archive, where the merge already ate the
     # handles — fall back to what this roll recorded the first time round.
-    ledger = load_credit_ledger(key)
+    ledger = ledger_by_basename(load_credit_ledger(key))
     new_credits: dict[str, str] = {}
     rows: list[dict] = []
     seq = max((int(v.get("seq", 0)) for v in state.values()), default=0)
@@ -598,10 +651,11 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
 
         # ---- curated rejection: record it, do not render, do not re-try ---
         if entry.get("verdict") == "reject":
-            orig_dir.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(src), str(orig_dir / src.name))
+            bin_dir = orig_dir / credit_subdir(frame_credit) if frame_credit else orig_dir
+            bin_dir.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(src), str(bin_dir / src.name))
             if frame_credit:
-                new_credits[src.name] = frame_credit
+                new_credits[f"{bin_dir.name}/{src.name}"] = frame_credit
             stamp = dt.datetime.now().isoformat(timespec="seconds")
             state[fp] = {"seq": seq, "source": src.name, "processed_at": stamp,
                          "rejected": True}
@@ -666,20 +720,23 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
             LOG.error("[%s] %s produced nothing — source left in place", key, src.name)
             continue
 
-        orig_dir.mkdir(parents=True, exist_ok=True)
-        # Merged rolls put two photographers' sources in one archive, so a name
-        # clash is possible. Never overwrite a *different* original — but the
-        # common case is the same file coming back round: retest_roll.sh copies
-        # from _originals into _dump and the renderer moves it back. Suffixing
-        # that would double the archive on every re-test, which it did once.
-        dest = orig_dir / src.name
+        # Credited frames go to _originals/<roll>/by_<handle>/, which is what
+        # makes a name clash between two photographers impossible. Uncredited
+        # frames stay in the roll root.
+        bin_dir = orig_dir / credit_subdir(frame_credit) if frame_credit else orig_dir
+        bin_dir.mkdir(parents=True, exist_ok=True)
+        # Never overwrite a *different* original — but the common case is the
+        # same file coming back round: retest_roll.sh stages from _originals
+        # into _dump and the renderer moves it back. Suffixing that would
+        # double the archive on every re-test, which it did once.
+        dest = bin_dir / src.name
         if dest.exists():
             if same_file(src, dest):
                 shutil.move(str(src), str(dest))          # identical, replace
             else:
                 i = 2
                 while dest.exists():
-                    dest = orig_dir / f"{src.stem}__{i}{src.suffix}"
+                    dest = bin_dir / f"{src.stem}__{i}{src.suffix}"
                     i += 1
                 LOG.warning("[%s] a different %s is already archived — saved as %s",
                             key, src.name, dest.name)
@@ -688,7 +745,7 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
             shutil.move(str(src), str(dest))
 
         if frame_credit:
-            new_credits[dest.name] = frame_credit
+            new_credits[f"{bin_dir.name}/{dest.name}"] = frame_credit
         stamp = dt.datetime.now().isoformat(timespec="seconds")
         state[fp] = {"seq": seq, "source": src.name, "processed_at": stamp}
         rows.append(_row(seq, key, date_str, src, stem, orient, made, flag, note,

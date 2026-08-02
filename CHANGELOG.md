@@ -10,6 +10,47 @@ it is v2, whatever the filename claims. Secondary check: `darkroom.py` is
 
 ---
 
+## Unreleased — 2 August 2026 (i)
+
+**Originals are filed by photographer.**
+
+    _originals/2026-08-01_borderlands/
+        by_donalrey/                 52 frames
+        by_the_catskill_weekender/   14 frames
+        _credits.json
+        _curation*.json
+
+The flat archive worked but was answering the question badly. "Whose is this?"
+needed a tool; now the folder says so. Three things fall out of it:
+
+- **retest_roll.sh becomes symmetric.** Each `by_<handle>/` stages back as
+  `<roll>_by_<handle>` — the exact folder shape the frames arrived in — so a
+  re-render takes credit from the folder name, the same code path as a fresh
+  upload. There is no re-render-specific attribution path left to get wrong,
+  which is the whole of yesterday's bug class.
+- **Filename collisions between photographers are unreachable.** Two people can
+  both hand over `IMG_0001.jpg`; they land in different folders. The `__2`
+  suffixing that once doubled the archive has nothing to fire on.
+- The credit ledger stays, re-keyed to `by_<handle>/<file>`, as a redundant
+  record and as the thing that makes "uncredited" explicit rather than absent.
+
+**A dedup bug found while testing the above.** `fingerprint()` was
+`name|size|mtime` with no folder in it. Two photographers' identically-named
+frames of equal size, written in the same second, produced the same
+fingerprint — and the second was silently skipped as already-processed. The
+frame simply never appeared, no warning. Reproduced with two solid test frames;
+the fingerprint now includes the containing folder. Idempotence is preserved
+because the round-trip restores the same folder name and `cp -p` keeps mtime.
+
+`backfill_credits.py --reorganize` migrates a flat archive in one step, and is
+idempotent. `tidy_dump.py` and `analyze_run.py` now walk the subfolders — a
+one-level scan would have reported a fully credited roll as empty.
+
+**The credit is settled at 3.2%** Bebas Neue, bottom-left, adaptive colour —
+confirmed legible at a glance on a phone, on real exports, by eye.
+
+---
+
 ## Unreleased — 2 August 2026 (h)
 
 **The photo credit was not faint. It was not being drawn.**

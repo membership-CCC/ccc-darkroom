@@ -85,8 +85,11 @@ def roll_date(p: Path) -> tuple[str, str]:
 def already_processed() -> set[str]:
     if not ORIGINALS.is_dir():
         return set()
+    # rglob, not one level: credited frames live in _originals/<roll>/by_<handle>/.
+    # A one-level scan would report every credited frame as unprocessed and
+    # offer to re-import work that is already archived.
     return {p.name for d in ORIGINALS.iterdir() if d.is_dir()
-            for p in d.iterdir() if p.is_file()}
+            for p in d.rglob("*") if p.is_file()}
 
 
 def main() -> int:

@@ -329,10 +329,14 @@ def main() -> int:
     else:
         print(f"!! no manifest at {mpath} — cross-check unavailable")
 
-    # Only real image files. The plan itself lives here too and is not a frame.
-    entries = [p for p in roll.iterdir()
+    # Only real image files. The plan and the credit ledger live here too and
+    # are not frames. Credited frames sit one level down in by_<handle>/, so
+    # this walks the subfolders as well — a flat listing would report a fully
+    # credited roll as empty.
+    entries = [p for p in roll.rglob("*")
                if p.is_file() and not p.name.startswith(".")
-               and not p.name.startswith("_curation")]
+               and not p.name.startswith("_curation")
+               and p.name != "_credits.json"]
     sources = sorted(p for p in entries if p.suffix.lower() in SOURCE_EXTS)
     skipped = sorted(p.name for p in entries
                      if p.suffix.lower() not in SOURCE_EXTS

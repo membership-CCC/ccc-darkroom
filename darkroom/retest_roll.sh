@@ -17,7 +17,6 @@ BIN="$HOME/CCC/Darkroom/bin"
 STATE="$HOME/CCC/Darkroom/.state"
 ORIG="$PHOTOS/_originals/$ROLL"
 OUT="$PHOTOS/$ROLL"
-DUMP="$PHOTOS/_dump/$ROLL"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 if [ ! -d "$ORIG" ]; then
@@ -44,25 +43,58 @@ fi
 
 echo ""
 echo "== 3. Returning originals to the dump for reprocessing =="
-mkdir -p "$DUMP"
 # Copy, not move: the originals archive stays intact as the safety net.
-# Exclude _curation.json — the archive keeps a copy for reference, but staging
-# a stale plan back into the dump means darkroom_cycle.sh would see a roll as
-# "already curated" and skip judging it entirely.
-for f in "$ORIG"/*; do
-  [ -f "$f" ] || continue
-  # _credits.json stays in the archive: the renderer reads it from there by
-  # roll name. Copying it into the dump would leave a file behind that stops
-  # the emptied dump folder being removed.
-  case "$(basename "$f")" in _curation.json|_credits.json|.*) continue ;; esac
-  cp -p "$f" "$DUMP"/
+#
+# The archive keeps each photographer's frames in by_<handle>/, so each one is
+# staged back as <roll>_by_<handle> — the exact folder shape it arrived in.
+# The credit is then read from the folder name on the way back in, the same
+# code path as a fresh upload. That symmetry is the point: there is no
+# re-render-specific attribution path left to get wrong.
+#
+# _curation.json is excluded deliberately — staging a stale plan back would
+# make darkroom_cycle.sh treat the roll as already curated and skip judging it.
+# _credits.json stays in the archive too; the renderer reads it there by roll
+# name, and a stray file in the dump stops the emptied folder being removed.
+STAGED=0
+DUMPS=""
+
+stage_dir() {          # $1 = source dir, $2 = destination dump folder name
+  local src="$1" name="$2" n=0 f
+  [ -d "$src" ] || return 0
+  for f in "$src"/*; do
+    [ -f "$f" ] || continue
+    case "$(basename "$f")" in _curation*.json|_credits.json|.*) continue ;; esac
+    mkdir -p "$PHOTOS/_dump/$name"
+    cp -p "$f" "$PHOTOS/_dump/$name"/
+    n=$((n + 1))
+  done
+  [ "$n" -gt 0 ] || return 0
+  STAGED=$((STAGED + n))
+  DUMPS="$DUMPS $name"
+  echo "  $n frame(s) -> _dump/$name"
+}
+
+# Uncredited frames live in the roll root and go back under the plain name.
+stage_dir "$ORIG" "$ROLL"
+# One dump folder per photographer.
+for d in "$ORIG"/by_*/; do
+  [ -d "$d" ] || continue
+  handle="$(basename "$d")"; handle="${handle#by_}"
+  stage_dir "$d" "${ROLL}_by_${handle}"
 done
-rm -f "$DUMP/_curation.json"
-echo "$(find "$DUMP" -maxdepth 1 -type f ! -name '_curation.json' ! -name '.*' | wc -l | tr -d ' ') frame(s) staged in _dump/$ROLL"
+
+if [ "$STAGED" -eq 0 ]; then
+  echo "ERROR: no frames found under $ORIG"
+  exit 1
+fi
+echo "$STAGED frame(s) staged"
 
 echo ""
 echo "== 4. Curating (this is the new part) =="
-python3 "$BIN/darkroom_curate.py" --dir "$DUMP"
+for name in $DUMPS; do
+  rm -f "$PHOTOS/_dump/$name/_curation.json"
+  python3 "$BIN/darkroom_curate.py" --dir "$PHOTOS/_dump/$name"
+done
 
 echo ""
 echo "== 5. Rendering to the curator's plan =="

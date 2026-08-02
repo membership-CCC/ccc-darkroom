@@ -493,7 +493,9 @@ It then took two further attempts on **size**, for a different reason: it was
 being judged at 1:1 or zoomed in. A 1080px feed post renders at roughly 390pt
 on a phone, a 0.36x downscale, and 1.45% and 1.8% were both illegible there
 while looking perfectly reasonable on screen. Settled at **3.2%** by rendering
-candidates and viewing them downscaled to phone width.
+candidates and viewing them downscaled to phone width, and **confirmed by eye
+on real exports at phone size on 2 August**. This is final unless the brand
+changes; do not reopen it from a desktop view of a full-resolution file.
 
 Two lessons, both learned expensively:
 
@@ -537,6 +539,49 @@ The general lesson: **a value that arrives as metadata on a container does not
 survive the container being merged away.** If it must outlive the merge, write
 it down next to the thing it describes. And when a treatment appears not to
 work, confirm it is actually being applied before tuning its parameters.
+
+### Originals are filed by photographer
+
+    _originals/<roll>/
+        by_donalrey/                 <- their frames, original filenames
+        by_the_catskill_weekender/
+        _credits.json                <- {"by_<handle>/<file>": "@handle"}
+        _curation*.json              <- the plan(s) this roll rendered to
+
+Uncredited frames stay in the roll root; that is also where a roll with no
+`_by_` folder lands entirely.
+
+The layout is not cosmetic. It makes `retest_roll.sh` **symmetric**: each
+`by_<handle>/` is staged back as `_dump/<roll>_by_<handle>/`, the exact folder
+shape the frames arrived in, so a re-render reads the credit from the folder
+name through the same code path as a fresh upload. The re-render-specific
+attribution path — the thing that silently dropped every credit — no longer
+exists to be got wrong. It also makes a filename collision between two
+photographers unreachable, so the `__2` suffixing that once doubled the archive
+has nothing to fire on.
+
+`backfill_credits.py --reorganize` migrates a flat archive, driven by the
+ledger, and is idempotent.
+
+Anything that reads the archive must walk one level down. A flat `iterdir()`
+reports a fully credited roll as empty — `tidy_dump.py` and `analyze_run.py`
+were both corrected for this at the same time.
+
+### The dedup fingerprint includes the folder
+
+`fingerprint()` was `name|size|mtime`. Two photographers' identically-named
+frames of equal size written in the same second hashed the same, and the second
+was **silently skipped as already-processed** — the frame simply never appeared,
+with no warning. Found while testing the subfolder change, with two solid test
+frames; not hypothetical, just narrow.
+
+It is now `<folder>/<name>|size|mtime`. Idempotence survives because the
+round-trip restores the same folder name and `cp -p` preserves mtime, so a frame
+coming back from the archive still matches itself.
+
+The pattern to watch for: **a dedup key that omits part of what makes two items
+distinct fails silently by construction** — the duplicate is dropped, and
+dropping is the one outcome that produces no output to inspect.
 
 **Only one cycle may run at a time.** The launchd timer does not know you are
 running one by hand. Two overlapping cycles raced on 2 August — one emptied and

@@ -1,0 +1,134 @@
+CCC DARKROOM — HOW TO UPLOAD
+════════════════════════════════════════════════
+
+Make a folder in here, put the photos in it, walk away.
+Processed within ~15 minutes plus sync time.
+
+
+1. NAME THE FOLDER
+────────────────────────────────────────────────
+
+   2026-08-01_borderlands
+
+   date_label   — the date carries into every filename.
+
+   Letters, numbers, hyphens, underscores ONLY.
+   No slashes. No spaces.
+
+   Drive lets you type a slash. macOS does not allow
+   one in a folder name, so the folder silently never
+   reaches the machine that does the work. This has
+   already cost us one roll.
+
+
+2. ADD THE PHOTO CREDIT
+────────────────────────────────────────────────
+
+   Put _by_ and the handle on the end:
+
+   2026-08-01_borderlands_by_donalrey
+   2026-08-01_borderlands_by_the_catskill_weekender
+
+   Every export from that folder gets a small
+   @handle bottom-left. Leave _by_ off and nothing
+   is marked.
+
+   Underscores inside a handle are fine.
+   Don't include the @ — it's added for you.
+
+
+3. TWO PEOPLE SHOT THE SAME RIDE?
+────────────────────────────────────────────────
+
+   One folder each, SAME label, different _by_:
+
+   2026-08-01_borderlands_by_donalrey
+   2026-08-01_borderlands_by_the_catskill_weekender
+
+   Both land in one roll — 2026-08-01_borderlands —
+   numbered straight through, each frame carrying
+   its own credit, one contact sheet for the ride.
+
+   The label must match exactly or you get two
+   separate rolls.
+
+   A third person can add their folder days later.
+   The roll grows and the contact sheet rebuilds.
+
+
+4. UPLOAD INTO THE FOLDER
+────────────────────────────────────────────────
+
+   Not into _dump itself. Loose files here are
+   ignored on purpose — no folder means no label
+   and no date.
+
+   Big uploads: the folder appears in Drive long
+   before the photos actually arrive on the machine.
+   Give a few hundred MB several minutes before
+   expecting anything.
+
+
+WHAT COMES BACK
+────────────────────────────────────────────────
+
+   CCC/Photos/2026-08-01_borderlands/
+       instagram/  strava/  email/  web/
+       contact_sheet.png   <- cull from this
+       manifest.csv
+       decisions.txt       <- fill this in
+       _hold/              <- see below
+
+   Note the output folder name is lowercased and
+   hyphenated. Borderlands_Don becomes
+   borderlands-don. If you can't find a roll, look
+   for the lowercase form before assuming it failed.
+
+
+WHOSE PHOTO IS WHOSE
+────────────────────────────────────────────────
+
+   Your originals are kept, filed by photographer:
+
+   CCC/Photos/_originals/2026-08-01_borderlands/
+       by_donalrey/
+       by_the_catskill_weekender/
+
+   Same filenames as uploaded, untouched, never
+   marked. Two people can use the same filename
+   without either being lost.
+
+
+_hold/ — READ THIS ONE
+────────────────────────────────────────────────
+
+   Anything showing a road sign, junction name or
+   trailhead marker gets held out of the publish
+   folders. HOLD_REVIEW.txt says why.
+
+   We publish photos of our own members riding
+   known routes on a predictable schedule. Enough
+   readable signage tells a stranger where we'll
+   be and when.
+
+   Look at held frames yourself before using them.
+
+
+NOTHING IS PUBLISHED AUTOMATICALLY
+────────────────────────────────────────────────
+
+   Every row comes out marked "draft". Posting and
+   sending stay manual, on purpose.
+
+
+────────────────────────────────────────────────
+Good:  2026-08-01_borderlands
+       2026-08-01_borderlands_by_donalrey
+       2026-07-31_shakedown-ride
+
+Bad:   _dump/2026-08-01_borderlands   (slash)
+       Borderlands 8/1                (slash, spaces)
+       borderlands                    (no date)
+────────────────────────────────────────────────
+Catskills Cycling Club · full docs:
+github.com/membership-CCC/ccc-darkroom
