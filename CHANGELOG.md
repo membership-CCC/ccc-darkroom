@@ -10,6 +10,78 @@ it is v2, whatever the filename claims. Secondary check: `darkroom.py` is
 
 ---
 
+## Unreleased — 2 August 2026 (c)
+
+`analyze_run.py` now loads **every** `_curation*.json` in a roll, not just the
+first. A merged roll carries one plan per source folder, so reading only
+`_curation.json` reported every frame from the second and third photographers
+as uncurated — exactly backwards, and it would have sent someone hunting for a
+curation failure that never happened.
+
+
+**A roll can grow after it has already been rendered.**
+
+Merged rolls made this a normal case rather than an edge case: a second or
+third photographer's folder for the same ride can arrive days after the first
+was processed. Everything about the render path already handled it — sequence
+numbering continues from the shared state, fingerprints keep it idempotent,
+credits attach per frame — but three things did not:
+
+- **The contact sheet was never rebuilt.** `darkroom_sheet.py --all` built
+  only for rolls *missing* a sheet, so late frames rendered into the roll and
+  never appeared on the one artefact the cull is actually done from. It now
+  rebuilds when `manifest.csv` is newer than `contact_sheet.png`, and stays
+  idempotent when nothing changed.
+- **The manifest lost its earlier rows on a column change.** A header mismatch
+  renamed the old file aside and started fresh, orphaning the first
+  photographers' rows in a sidecar nobody reads. It now migrates: every
+  existing row is kept, new columns fill blank, and the previous file is saved
+  as `manifest.pre-migration.csv`.
+- **`HOLD_REVIEW.txt` stacked duplicates** on repeated `--force` runs. Entries
+  already present are skipped.
+
+`darkroom_sheet.py` also skips `xArchive` now, matching `NOT_A_ROLL` in the
+renderer and curator — it was previously willing to build a contact sheet for
+the bin.
+
+---
+
+## Unreleased — 2 August 2026 (b)
+
+**Photo credit, from the folder name.**
+
+`<date>_<label>_by_<handle>` marks every export from that folder with
+`@handle`. Omitting `_by_` is how a roll goes uncredited — per-folder opt-in
+with no config file to drift out of sync.
+
+`_by_<handle>` is stripped from the roll label, which **merges** two
+photographers' folders of the same ride into one output roll: continuous
+sequence numbering, per-frame credit, one contact sheet. Merging exposed three
+places where the second folder would have quietly overwritten the first:
+
+- **the curation plan** — `_curation.json` was copied to the output folder
+  unconditionally. The second plan now lands as
+  `_curation_<source-folder>.json` rather than replacing the first.
+- **`HOLD_REVIEW.txt`** — was rewritten per source folder, so the first
+  folder's held frames disappeared from the notice. Now appends. A held frame
+  missing from the notice is a held frame nobody reviews.
+- **`_originals/`** — two folders can contain the same filename. Now suffixed
+  `__2` with a warning rather than overwriting an original.
+
+Manifest gains a `credit` column.
+
+The mark: Montserrat Regular, lowercase, bottom-left, 1.45% of the long edge
+(clamped 11–30px). Ink or Oat chosen per frame by sampling luminance under the
+text — a fixed colour disappears against skies. A blurred halo rather than an
+offset drop shadow, which at this size overlaps the letterform and reads
+embossed; it strengthens when the ground measures busy (stddev > 42), the
+dappled-light case where part of the text lands on highlight and part on
+shadow. Measured contrast 5.3:1 on blown highlight, 7.2:1 on deep shadow,
+3.9:1 on dappled — all clear of the 3:1 bar for a findable byline. Stories get
+a 15.5% bottom inset to clear Instagram's UI. Originals are never marked.
+
+---
+
 ## Unreleased — 2 August 2026
 
 **Drive listing failures no longer abort the cycle.**

@@ -21,6 +21,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 SCRIPTS=(
   darkroom.py
   darkroom_curate.py
+  darkroom_credit.py
   darkroom_sheet.py
   darkroom_learn.py
   darkroom_intake.py

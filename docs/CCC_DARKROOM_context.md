@@ -449,6 +449,55 @@ against a partially-written *file*, not against a partially-materialised
 
 ---
 
+## Photo credit and roll merging
+
+The dump folder name carries the photographer: `<date>_<label>_by_<handle>`.
+No lookup table — the folder name is the whole mechanism, so it cannot drift
+out of sync with a config file, and omitting `_by_` is how a roll goes
+uncredited.
+
+**`_by_<handle>` is stripped from the roll label, and that is deliberate:** it
+merges two photographers' folders of the same ride into one output roll, with
+continuous sequence numbering and one contact sheet. The credit is therefore
+per *frame*, not per roll.
+
+Merging is the part that carries risk. Three things silently overwrote before
+this was handled, and any new code writing into a roll must assume more than
+one source folder feeds it:
+
+- the curation plan copied into the output folder
+- `HOLD_REVIEW.txt`, rewritten rather than appended
+- `_originals/`, where two folders can hold the same filename
+
+Design of the mark, and why: Montserrat Regular because Bebas is the display
+face and a credit that shouts is a watermark. Lowercase because Instagram
+handles are. Bottom-left because right is where Instagram stacks carousel dots.
+Colour chosen per frame from the luminance beneath the text — a fixed colour
+disappears against skies, and this is the same measure-then-decide principle as
+the curator. A blurred halo rather than an offset shadow, which at ~16px
+overlaps the letterform and reads embossed.
+
+**Originals are never marked.** The credit exists only on exports, so the
+archive stays clean and a re-render can change the treatment freely.
+
+### A roll can grow after it has been rendered
+
+Because rolls merge, a third photographer's folder arriving days later is
+normal, not exceptional. Anything written per-roll must assume it will be
+written again, later, by a different source folder. The render path was
+already safe — sequence numbering continues from shared state, fingerprints
+keep it idempotent — but the artefacts around it were not:
+
+- the **contact sheet** built only when missing, so late frames never appeared
+  on the sheet the cull is done from. Now rebuilds when the manifest is newer.
+- the **manifest** started a new file on any column change, orphaning earlier
+  rows. Now migrates them forward.
+- **`HOLD_REVIEW.txt`** stacked duplicate entries on repeated `--force`.
+
+The general rule: **the last write must not assume it is the only write.**
+
+---
+
 ## Known limits and open questions
 
 **HOLD calibration is still unverified.** Zero frames were held across both

@@ -159,6 +159,34 @@ Bad: `_dump/2026-07-31_test` · `Borderlands 8/1`
 Loose files in the `_dump` root are ignored on purpose — they have no roll
 label and no date. `tidy_dump.py` sorts them out.
 
+### Photo credit — the `_by_` convention
+
+Append `_by_<handle>` to the folder name and every export from it carries that
+credit. Omit it and nothing is marked. There is no config file to keep in sync;
+the folder name is the whole mechanism.
+
+```
+2026-08-01_borderlands_by_donalrey               →  @donalrey
+2026-08-01_borderlands_by_the_catskill_weekender →  @the_catskill_weekender
+2026-08-01_borderlands                           →  no credit
+```
+
+**`_by_<handle>` is stripped from the roll label**, so two photographers'
+folders of the same ride merge into one output roll — `2026-08-01_borderlands`
+— sequentially numbered, each frame carrying its own credit, one contact sheet
+for the whole ride. Name the label identically in both folders or you will get
+two rolls.
+
+The handle is taken before slugify, so underscores inside it survive. It is
+lowercased, because Instagram handles are. Splitting happens at the **last**
+`_by_`, so `ride_by_the_lake_by_donalrey` credits donalrey.
+
+The mark itself: Montserrat Regular, bottom-left, 1.45% of the long edge, Ink
+or Oat chosen per frame from the luminance beneath the text, with a blurred
+halo that strengthens over busy ground. Stories get a taller bottom inset to
+clear Instagram's UI. **Originals are never marked** — the credit exists only
+on exports.
+
 ---
 
 ## Two rules that matter more than they look

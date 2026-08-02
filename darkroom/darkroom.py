@@ -62,6 +62,12 @@ ORIGINALS = DRIVE / "_originals"
 
 STATE_DIR = HOME / "CCC" / "Darkroom" / ".state"
 
+try:
+    from darkroom_credit import draw_credit
+except ImportError:                                    # pragma: no cover
+    def draw_credit(img, handle, preset=""):           # noqa: D103
+        return img
+
 PLAN_NAME = "_curation.json"
 HOLD_DIRNAME = "_hold"
 
@@ -340,11 +346,39 @@ def slugify(t: str) -> str:
     return SLUG_RE.sub("-", t.strip().lower()).strip("-") or "roll"
 
 
-def parse_roll(name: str) -> tuple[str, str]:
+# Photo credit lives in the folder name: <date>_<label>_by_<handle>.
+# Greedy on the left so it splits at the LAST "_by_" — a label like
+# "ride_by_the_lake_by_donalrey" must credit donalrey, not "the_lake_by_donalrey".
+BY_RE = re.compile(r"^(.*)_by_(.+)$", re.IGNORECASE)
+
+
+def parse_roll(name: str) -> tuple[str, str, str | None]:
+    """(date, slug, credit-handle-or-None) from a dump folder name.
+
+        2026-08-01_borderlands_by_donalrey  -> 2026-08-01, borderlands, @donalrey
+        2026-08-01_borderlands              -> 2026-08-01, borderlands, None
+
+    The credit is taken before slugify so underscores inside a handle survive:
+    "the_catskill_weekender" must not become "the-catskill-weekender".
+
+    Stripping "_by_<handle>" from the label is what merges two photographers'
+    folders of the same ride into one output roll.
+    """
     m = DATED_RE.match(name.strip())
     if m:
-        return m.group(1), slugify(m.group(2))
-    return dt.date.today().isoformat(), slugify(name)
+        date_str, label = m.group(1), m.group(2)
+    else:
+        date_str, label = dt.date.today().isoformat(), name.strip()
+
+    credit = None
+    b = BY_RE.match(label)
+    if b:
+        label, handle = b.group(1), b.group(2).strip()
+        if handle:
+            credit = "@" + handle.lstrip("@").lower()
+        if not label.strip():
+            LOG.warning("roll %r has a credit but no label — using 'roll'", name)
+    return date_str, slugify(label), credit
 
 
 def fingerprint(p: Path) -> str:
@@ -426,7 +460,7 @@ def listdir_retry(d: Path, attempts: int = 4, pause: float = 2.0) -> list:
 
 def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
                  ignore_curation: bool) -> int:
-    date_str, slug = parse_roll(roll_dir.name)
+    date_str, slug, credit = parse_roll(roll_dir.name)
     key = f"{date_str}_{slug}"
 
     sources = sorted(p for p in listdir_retry(roll_dir)
@@ -487,7 +521,8 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
             state[fp] = {"seq": seq, "source": src.name, "processed_at": stamp,
                          "rejected": True}
             rows.append(_row(seq, key, date_str, src, stem, orient, [], flag, note,
-                             metrics, stamp, entry, status="rejected"))
+                             metrics, stamp, entry, status="rejected",
+                             credit=credit))
             done += 1
             LOG.info("[%s] %s -> REJECTED (%s) — archived, nothing rendered",
                      key, src.name, entry.get("verdict_note", "no reason given"))
@@ -528,6 +563,10 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
                         out_img, used = render_preset(img, spec)
                     else:
                         out_img, used = render_curated(img, spec, crop)
+                    # After resize, so the mark is sized against the exported
+                    # dimensions rather than the source. Originals stay clean.
+                    if credit:
+                        out_img = draw_credit(out_img, credit, pname)
                     d = dest_root / spec["dir"]
                     d.mkdir(parents=True, exist_ok=True)
                     out_img.save(d / f"{stem}_{pname}{suffix}.jpg", "JPEG",
@@ -543,13 +582,23 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
             continue
 
         orig_dir.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(src), str(orig_dir / src.name))
+        # Merged rolls put two photographers' sources in one archive, so a
+        # name clash is now possible. Never overwrite an original.
+        dest = orig_dir / src.name
+        if dest.exists():
+            i = 2
+            while dest.exists():
+                dest = orig_dir / f"{src.stem}__{i}{src.suffix}"
+                i += 1
+            LOG.warning("[%s] %s already archived under that name — saved as %s",
+                        key, src.name, dest.name)
+        shutil.move(str(src), str(dest))
 
         stamp = dt.datetime.now().isoformat(timespec="seconds")
         state[fp] = {"seq": seq, "source": src.name, "processed_at": stamp}
         rows.append(_row(seq, key, date_str, src, stem, orient, made, flag, note,
                          metrics, stamp, entry,
-                         status="hold" if held else "draft"))
+                         status="hold" if held else "draft", credit=credit))
         done += 1
         LOG.info("[%s] %s -> %s  [%s, %s, %d formats]%s%s", key, src.name, stem,
                  orient, tone, len(made),
@@ -569,9 +618,18 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
             # re-run with --force" override — there was nothing left to edit.
             src_plan = roll_dir / PLAN_NAME
             if src_plan.exists():
-                shutil.copy2(str(src_plan), str(out_root / PLAN_NAME))
+                # A merged roll is fed by more than one dump folder, each with
+                # its own plan. The first keeps the documented name; the rest
+                # are qualified by source so neither is silently overwritten.
+                dest_plan = out_root / PLAN_NAME
+                if dest_plan.exists():
+                    dest_plan = out_root / f"_curation_{roll_dir.name}.json"
+                    LOG.info("[%s] second plan for this roll -> %s",
+                             key, dest_plan.name)
+                shutil.copy2(str(src_plan), str(dest_plan))
                 orig_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(str(src_plan), str(orig_dir / PLAN_NAME))
+                oplan = orig_dir / dest_plan.name
+                shutil.copy2(str(src_plan), str(oplan))
             if not any(p for p in roll_dir.iterdir() if p.name != PLAN_NAME):
                 src_plan.unlink(missing_ok=True)
                 roll_dir.rmdir()
@@ -581,7 +639,7 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
 
 
 def _row(seq, key, date_str, src, stem, orient, made, flag, note, metrics,
-         stamp, entry, status) -> dict:
+         stamp, entry, status, credit=None) -> dict:
     return {
         "sequence": seq, "roll": key, "date": date_str,
         "source_file": src.name, "stem": stem,
@@ -600,6 +658,7 @@ def _row(seq, key, date_str, src, stem, orient, made, flag, note, metrics,
         "hold_reason": entry.get("hold_reason", ""),
         "description": entry.get("description", ""),
         "caption_hint": entry.get("caption_hint", ""),
+        "credit": credit or "",
         "processed_at": stamp, "status": status,
     }
 
@@ -626,11 +685,26 @@ To keep the hold, do nothing — the files stay in {holddir}/ and out of the way
 
 def write_hold_notice(path: Path, roll_key: str, rows: list[dict]) -> None:
     items = "\n".join(
-        f"  {r['stem']}  ({r['source_file']})\n"
+        f"  {r['stem']}  ({r['source_file']})"
+        + (f"  [{r['credit']}]" if r.get("credit") else "") + "\n"
         f"      reason: {r['hold_reason'] or 'unspecified'}\n"
         f"      subject: {r['description'] or '—'}"
         for r in rows)
     path.parent.mkdir(parents=True, exist_ok=True)
+    # A merged roll is written once per source folder. Appending keeps the
+    # first folder's holds instead of silently replacing them with the
+    # second's — a held frame that vanishes from the notice is a held frame
+    # nobody reviews.
+    if path.exists():
+        # --force re-renders frames already in the ledger, so appending blindly
+        # would stack the same holds on every run.
+        existing = path.read_text(encoding="utf-8")
+        fresh = [blk for blk in items.split("\n\n")
+                 if blk.strip() and blk.split("\n")[0].strip() not in existing]
+        if fresh:
+            with path.open("a", encoding="utf-8") as fh:
+                fh.write("\n" + "\n\n".join(fresh) + "\n")
+        return
     path.write_text(HOLD_TEMPLATE.format(roll=roll_key, holddir=HOLD_DIRNAME,
                                          items=items))
 
@@ -666,20 +740,36 @@ MANIFEST_FIELDS = ["sequence", "roll", "date", "source_file", "stem", "orientati
                    "mean_luma", "variance", "shadow_frac", "highlight_frac",
                    "sharpness", "curated", "decided_by", "verdict", "tone",
                    "hold", "hold_reason", "description", "caption_hint",
-                   "processed_at", "status"]
+                   "credit", "processed_at", "status"]
 
 
 def write_manifest(path: Path, rows: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     exists = path.exists()
     if exists:
-        # A v2 manifest has fewer columns; start a new file rather than
-        # writing rows that don't line up with the existing header.
         with path.open(newline="", encoding="utf-8") as fh:
             header = next(csv.reader(fh), [])
         if header and header != MANIFEST_FIELDS:
-            path.rename(path.with_suffix(".v2.csv"))
-            exists = False
+            # An older manifest has fewer columns. Rolls are merged and can
+            # grow days later, so simply starting a new file would leave the
+            # earlier photographers' rows orphaned in a sidecar nobody reads.
+            # Migrate instead: keep every existing row, fill the new columns
+            # blank, and rewrite under the current header.
+            try:
+                with path.open(newline="", encoding="utf-8") as fh:
+                    old_rows = list(csv.DictReader(fh))
+            except OSError:
+                old_rows = []
+            path.replace(path.with_suffix(".pre-migration.csv"))
+            with path.open("w", newline="", encoding="utf-8") as fh:
+                wr = csv.DictWriter(fh, fieldnames=MANIFEST_FIELDS)
+                wr.writeheader()
+                for r in old_rows:
+                    wr.writerow({k: r.get(k, "") for k in MANIFEST_FIELDS})
+            LOG.info("manifest migrated to the current columns — %d existing "
+                     "row(s) kept, previous file saved as %s",
+                     len(old_rows), path.with_suffix(".pre-migration.csv").name)
+            exists = True
     with path.open("a", newline="", encoding="utf-8") as fh:
         wr = csv.DictWriter(fh, fieldnames=MANIFEST_FIELDS)
         if not exists:

@@ -230,6 +230,32 @@ def build_sheet(roll_dir: Path, out_path: Path | None = None) -> Path | None:
 
 # ===========================================================================
 
+# Kept in step with darkroom.py — xArchive is a bin, not a roll.
+NOT_A_ROLL = {"xarchive"}
+
+
+def _needs_sheet(roll: Path) -> bool:
+    """A sheet is stale as soon as the roll grows.
+
+    Rolls are merged: a second or third photographer's folder for the same ride
+    can arrive days after the first was rendered. Building only when the sheet
+    is *missing* meant those frames rendered into the roll and never appeared
+    on the sheet — invisible in the one artefact the cull is actually done
+    from. Compare against the manifest, which is appended on every pass.
+    """
+    sheet = roll / "contact_sheet.png"
+    if not sheet.exists():
+        return True
+    manifest = roll / "manifest.csv"
+    try:
+        if manifest.exists() and manifest.stat().st_mtime > sheet.stat().st_mtime:
+            LOG.info("%s grew since its sheet was built — rebuilding", roll.name)
+            return True
+    except OSError:
+        return True
+    return False
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="CCC contact sheet builder")
     ap.add_argument("roll", nargs="?", type=Path, help="path to a processed roll folder")
@@ -244,9 +270,10 @@ def main() -> int:
             LOG.error("photos root not found: %s", PHOTOS_ROOT)
             return 2
         targets = [d for d in sorted(PHOTOS_ROOT.iterdir())
-                   if d.is_dir() and not d.name.startswith("_")]
+                   if d.is_dir() and not d.name.startswith("_")
+                   and d.name.lower() not in NOT_A_ROLL]
         if not args.force:
-            targets = [d for d in targets if not (d / "contact_sheet.png").exists()]
+            targets = [d for d in targets if _needs_sheet(d)]
     elif args.roll:
         targets = [args.roll]
     else:

@@ -127,21 +127,35 @@ def pick_roll(arg: str | None) -> Path:
     return max(rolls, key=lambda d: d.stat().st_mtime)
 
 
-def load_plan(roll: Path, out_root: Path) -> tuple[dict, dict, Path | None]:
+def load_plan(roll: Path, out_root: Path) -> tuple[dict, dict, list[Path]]:
+    """Returns (meta, frames, paths).
+
+    A merged roll is fed by more than one dump folder, so it carries more than
+    one plan: `_curation.json` plus `_curation_<source-folder>.json` for each
+    additional photographer. Loading only the first would report every frame
+    from the second and third folders as uncurated, which is exactly backwards.
+
+    darkroom.py copies plans to both the originals archive and the output
+    folder; prefer whichever directory actually has them.
     """
-    Returns (meta, frames, path). darkroom.py copies the plan to BOTH the
-    originals archive and the output folder; either will do.
-    """
-    for candidate in (roll / PLAN_NAME, out_root / PLAN_NAME):
-        if candidate.exists():
+    for d in (roll, out_root):
+        found = sorted(d.glob("_curation*.json")) if d.is_dir() else []
+        if not found:
+            continue
+        meta, frames, used = {}, {}, []
+        for candidate in found:
             try:
                 plan = json.loads(candidate.read_text())
             except (json.JSONDecodeError, OSError) as exc:
-                print(f"!! plan at {candidate} unreadable ({exc})")
+                print(f"!! plan at {candidate.name} unreadable ({exc})")
                 continue
-            meta = {k: v for k, v in plan.items() if k != "frames"}
-            return meta, plan.get("frames") or {}, candidate
-    return {}, {}, None
+            if not meta:
+                meta = {k: v for k, v in plan.items() if k != "frames"}
+            frames.update(plan.get("frames") or {})
+            used.append(candidate)
+        if frames:
+            return meta, frames, used
+    return {}, {}, []
 
 
 def crop_form(crop) -> tuple[str, str]:
@@ -288,14 +302,16 @@ def main() -> int:
     key = roll.name
     out_root = DRIVE / key
 
-    meta, frames, plan_path = load_plan(roll, out_root)
+    meta, frames, plan_paths = load_plan(roll, out_root)
 
     print("=" * 78)
     print(f"ROLL: {key}")
     print(f"originals: {roll}")
     print(f"outputs:   {out_root}")
-    if plan_path:
-        print(f"plan:      {plan_path}")
+    if plan_paths:
+        print(f"plan:      {plan_paths[0]}")
+        for extra in plan_paths[1:]:
+            print(f"           + {extra.name}   (merged roll)")
         print(f"           backend={meta.get('backend', '?')}  "
               f"judgment={meta.get('judgment', '?')}  "
               f"model={meta.get('model') or 'n/a'}")
@@ -315,9 +331,12 @@ def main() -> int:
 
     # Only real image files. The plan itself lives here too and is not a frame.
     entries = [p for p in roll.iterdir()
-               if p.is_file() and not p.name.startswith(".") and p.name != PLAN_NAME]
+               if p.is_file() and not p.name.startswith(".")
+               and not p.name.startswith("_curation")]
     sources = sorted(p for p in entries if p.suffix.lower() in SOURCE_EXTS)
-    skipped = sorted(p.name for p in entries if p.suffix.lower() not in SOURCE_EXTS)
+    skipped = sorted(p.name for p in entries
+                     if p.suffix.lower() not in SOURCE_EXTS
+                     and not p.name.startswith("_curation"))
     if skipped:
         print(f"(ignoring non-image files: {', '.join(skipped)})")
 
