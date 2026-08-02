@@ -3,6 +3,27 @@
 # This is what launchd should run, NOT darkroom.py on its own — the renderer
 # alone would silently fall back to v2 orientation rules with no plan present.
 BIN="$HOME/CCC/Darkroom/bin"
+
+# Only one cycle at a time. The launchd timer fires every 15 minutes and does
+# not care that you are running one by hand: on 2 Aug two cycles overlapped,
+# one emptied a dump folder and rmdir'd it, and the other reported that roll as
+# failed mid-run. Benign that time, but both processes derive the next sequence
+# number from the same state file, so a collision could overwrite exports.
+#
+# mkdir is atomic on every filesystem this touches; flock is not on macOS.
+LOCK="$HOME/CCC/Darkroom/.state/cycle.lock"
+mkdir -p "$HOME/CCC/Darkroom/.state"
+if ! mkdir "$LOCK" 2>/dev/null; then
+  if [ -f "$LOCK/pid" ] && kill -0 "$(cat "$LOCK/pid" 2>/dev/null)" 2>/dev/null; then
+    echo "=== another cycle is already running (pid $(cat "$LOCK/pid")) — skipping ==="
+    exit 0
+  fi
+  echo "clearing a stale lock from a previous run"
+  rm -rf "$LOCK"
+  mkdir "$LOCK" || { echo "could not take the lock"; exit 1; }
+fi
+echo $$ > "$LOCK/pid"
+trap 'rm -rf "$LOCK"' EXIT INT TERM
 DUMP="$HOME/Library/CloudStorage/GoogleDrive-account@example.com/My Drive/CCC/Photos/_dump"
 
 echo "=== darkroom cycle $(date '+%Y-%m-%d %H:%M:%S') ==="

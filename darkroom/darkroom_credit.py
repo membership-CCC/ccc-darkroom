@@ -16,25 +16,23 @@ Decisions and why:
             @DONALREY in caps breaks the handle's own identity.
   position  bottom-left. Right is where Instagram stacks carousel dots and the
             overflow menu, and left-aligned reads as a print byline.
-  size      1.45% of the long edge — ~16px on a 1080 feed post. Clamped 11–30px
-            so it neither vanishes on email_body nor dominates web_hero.
+  size      1.8% of the long edge — ~19px on a 1080 feed post. Clamped 12–34px.
+            1.45% was the first attempt and tested invisible on real frames.
   colour    Ink #1A1812 / Oat #ECE6D6, chosen per frame by sampling the
             luminance under the text. Fixed-colour credits disappear against
             skies. This is the same principle as the rest of the pipeline:
             measure, then decide.
-  opacity   82% on dark ground, 78% on light. A first pass at 62/55 tested as
-            genuinely too faint over dappled light — "subtle" has to still
-            clear the bar of "visible".
+  opacity   97% on dark ground, 95% on light. Near-solid: against photographic
+            detail, transparency reads as "smudge" rather than "restraint".
+            Restraint comes from size and placement, not from fading the ink.
   tracking  +0.06em. At this size, slight positive tracking reads as
             deliberate rather than cramped.
-  halo      a blurred copy of the text in the opposite colour, sitting under
-            it — not an offset drop shadow. At this size an offset shadow
-            overlaps the letterform and reads embossed and muddy; a halo
-            separates the mark from the ground without touching the strokes.
-            Strengthens when the ground measures busy (luminance stddev > 42),
-            which is what defeats a flat credit: part of the text lands on
-            highlight, part on shadow, and no single colour serves both.
-            Still less intrusive than a scrim laid over the photograph.
+  halo      a tight, strong blurred copy of the text in the opposite colour,
+            sitting under it — not an offset drop shadow, which at this size
+            overlaps the letterform and reads embossed. Radius is deliberately
+            small (0.14em): a wide soft halo blurs the strokes it is meant to
+            separate. A scrim plate behind the text was tried and rejected —
+            the visible rectangle is more intrusive than the halo it replaces.
 """
 from __future__ import annotations
 
@@ -45,17 +43,18 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 INK = (26, 24, 18)
 OAT = (236, 230, 214)
 
-SIZE_RATIO = 0.0145
-SIZE_MIN, SIZE_MAX = 11, 30
+SIZE_RATIO = 0.018
+SIZE_MIN, SIZE_MAX = 12, 34
+FACE = "BebasNeue-Regular.ttf"
 INSET_RATIO = 0.032
 TRACKING_EM = 0.06
 
-OPACITY_ON_DARK = 0.82
-OPACITY_ON_LIGHT = 0.78
-HALO_OPACITY = 0.55
+OPACITY_ON_DARK = 0.97
+OPACITY_ON_LIGHT = 0.95
+HALO_OPACITY = 0.85
 # Busy ground needs more separation than flat ground. Measured, not guessed.
-HALO_BUSY_BOOST = 0.25
-HALO_RADIUS_EM = 0.16
+HALO_BUSY_BOOST = 0.05
+HALO_RADIUS_EM = 0.14
 BUSY_STDDEV = 42.0
 
 # Instagram's UI covers roughly the bottom eighth of a story. Anything placed
@@ -67,8 +66,7 @@ INSET_OVERRIDE = {
 
 def _font(px: int) -> ImageFont.FreeTypeFont:
     here = Path(__file__).resolve().parent
-    for cand in (here / "fonts" / "Montserrat-Regular.ttf",
-                 here / "Montserrat-Regular.ttf"):
+    for cand in (here / "fonts" / FACE, here / FACE):
         if cand.exists():
             return ImageFont.truetype(str(cand), px)
     return ImageFont.load_default()

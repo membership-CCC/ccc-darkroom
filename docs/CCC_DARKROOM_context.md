@@ -480,6 +480,26 @@ overlaps the letterform and reads embossed.
 **Originals are never marked.** The credit exists only on exports, so the
 archive stays clean and a re-render can change the treatment freely.
 
+**The credit was designed twice.** The first version — Montserrat Regular at
+1.45%, 80% opacity, soft halo — was validated on synthetic gradients and was
+completely invisible on real photographs. Synthetic test grounds have almost no
+high-frequency detail; gravel, foliage and clothing have it everywhere, and
+thin type at 20px simply disappears. The halo added to compensate made it
+worse, blurring the strokes it was meant to separate. It now uses **Bebas
+Neue** (condensed, heavier, holds shape small) at 1.8%, near-solid, with a
+tight strong halo. Measured 3.7–11.1:1 on real exports.
+
+The lesson generalises: **validate image treatments on real source material, not
+on generated test patterns.** A contrast ratio computed against a smooth
+gradient says nothing about legibility against a photograph.
+
+**Only one cycle may run at a time.** The launchd timer does not know you are
+running one by hand. Two overlapping cycles raced on 2 August — one emptied and
+removed a dump folder the other was mid-way through reading. Both derive the
+next sequence number from the same state file, so a collision could overwrite
+exports. `darkroom_cycle.sh` holds an atomic `mkdir` lock in `.state/`, with
+stale-lock detection by PID. `flock` does not exist on macOS.
+
 ### A roll can grow after it has been rendered
 
 Because rolls merge, a third photographer's folder arriving days later is

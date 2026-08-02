@@ -10,6 +10,46 @@ it is v2, whatever the filename claims. Secondary check: `darkroom.py` is
 
 ---
 
+## Unreleased — 2 August 2026 (d)
+
+**The credit was invisible on real photographs. Retuned against them.**
+
+Everything before this was validated on synthetic gradients, which have almost
+no high-frequency detail. A real frame of gravel, foliage and clothing has it
+everywhere, and Montserrat Regular at ~20px vanished into it completely. Worse,
+the halo added to compensate turned the thin strokes to mush.
+
+Changed after testing four treatments on actual Borderlands exports:
+
+- **Face is now Bebas Neue, not Montserrat.** The original reasoning — Bebas is
+  a display face built to shout, so a credit shouldn't use it — was sound in
+  the abstract and wrong in practice. Bebas is condensed and heavier, so it
+  holds shape at this size against a busy ground. Its lack of lowercase means
+  handles set as caps, which is not ideal; an unreadable credit in the right
+  case credits nobody.
+- **1.45% → 1.8%** of the long edge.
+- **Opacity 82/78% → 97/95%.** Against photographic detail, transparency reads
+  as smudge rather than restraint. Restraint comes from size and placement.
+- **Halo radius tightened** (0.16 → 0.14em) and strengthened to 85%. A wide
+  soft halo blurs the very strokes it is meant to separate.
+- A **scrim plate** behind the text was tried and rejected: the visible
+  rectangle is more intrusive than the halo it replaces.
+
+Measured on five real exports: 3.7–11.1:1 contrast, all clear of 3:1.
+
+**Only one cycle runs at a time now.**
+
+The launchd timer fires every fifteen minutes and does not care that you are
+running a cycle by hand. On 2 August the two overlapped: one emptied a dump
+folder and `rmdir`'d it, and the other reported that roll as failed mid-run.
+The outcome was benign — all 66 frames landed — but both processes derive the
+next sequence number from the same state file, so a collision could have
+overwritten exports. `darkroom_cycle.sh` now takes an atomic `mkdir` lock,
+detects and clears a stale one by PID, and releases on exit or interrupt.
+`flock` is not available on macOS.
+
+---
+
 ## Unreleased — 2 August 2026 (c)
 
 `analyze_run.py` now loads **every** `_curation*.json` in a roll, not just the
