@@ -16,8 +16,16 @@ Decisions and why:
             @DONALREY in caps breaks the handle's own identity.
   position  bottom-left. Right is where Instagram stacks carousel dots and the
             overflow menu, and left-aligned reads as a print byline.
-  size      1.8% of the long edge — ~19px on a 1080 feed post. Clamped 12–34px.
-            1.45% was the first attempt and tested invisible on real frames.
+  size      3.2% of the long edge — ~43px on a 1080 feed post. Clamped 14–80px;
+            the ceiling is deliberately far above what any preset needs, because
+            an earlier 34px clamp silently capped the ratio and made two test
+            sizes render identically.
+
+            Sized against the real viewing condition, which took three attempts
+            to get right. 1.45% and then 1.8% were both judged at 1:1 or zoomed
+            in, where they looked fine. A 1080px feed post renders at roughly
+            390pt on a phone — a 0.36x downscale — and at that size both were
+            illegible. **Evaluate at phone scale, not at 1:1.**
   colour    Ink #1A1812 / Oat #ECE6D6, chosen per frame by sampling the
             luminance under the text. Fixed-colour credits disappear against
             skies. This is the same principle as the rest of the pipeline:
@@ -43,8 +51,8 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 INK = (26, 24, 18)
 OAT = (236, 230, 214)
 
-SIZE_RATIO = 0.018
-SIZE_MIN, SIZE_MAX = 12, 34
+SIZE_RATIO = 0.032
+SIZE_MIN, SIZE_MAX = 14, 80
 FACE = "BebasNeue-Regular.ttf"
 INSET_RATIO = 0.032
 TRACKING_EM = 0.06

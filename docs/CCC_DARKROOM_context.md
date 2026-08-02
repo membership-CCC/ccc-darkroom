@@ -489,9 +489,23 @@ worse, blurring the strokes it was meant to separate. It now uses **Bebas
 Neue** (condensed, heavier, holds shape small) at 1.8%, near-solid, with a
 tight strong halo. Measured 3.7–11.1:1 on real exports.
 
-The lesson generalises: **validate image treatments on real source material, not
-on generated test patterns.** A contrast ratio computed against a smooth
-gradient says nothing about legibility against a photograph.
+It then took two further attempts on **size**, for a different reason: it was
+being judged at 1:1 or zoomed in. A 1080px feed post renders at roughly 390pt
+on a phone, a 0.36x downscale, and 1.45% and 1.8% were both illegible there
+while looking perfectly reasonable on screen. Settled at **3.2%** by rendering
+candidates and viewing them downscaled to phone width.
+
+Two lessons, both learned expensively:
+
+- **Validate image treatments on real source material, not generated test
+  patterns.** A contrast ratio against a smooth gradient says nothing about
+  legibility against gravel and foliage.
+- **Evaluate at the size it will be seen, not the size convenient to inspect.**
+  Everything about this credit looked fine at 1:1 and was invisible in the feed.
+
+Also: `SIZE_MAX` was 34 while the ratio asked for 43, so the clamp silently
+capped it and two candidate sizes rendered identically. Check that a clamp is
+not binding before comparing values that it bounds.
 
 **Only one cycle may run at a time.** The launchd timer does not know you are
 running one by hand. Two overlapping cycles raced on 2 August — one emptied and

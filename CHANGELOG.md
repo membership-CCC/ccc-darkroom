@@ -10,6 +10,26 @@ it is v2, whatever the filename claims. Secondary check: `darkroom.py` is
 
 ---
 
+## Unreleased — 2 August 2026 (f)
+
+**Credit sized against the real viewing condition. Third attempt.**
+
+1.45%, then 1.8%, both judged at 1:1 or zoomed in, where they looked fine.
+They were not fine. A 1080px feed post renders at roughly 390pt on a phone — a
+0.36x downscale — and at that size both were illegible. Now **3.2%**, chosen by
+rendering candidates onto real exports and viewing them downscaled to phone
+width.
+
+`SIZE_MAX` also raised from 34 to 80. At 34 the clamp silently capped the
+ratio: a 3.2% and a 4.0% test rendered identically and I nearly drew a
+conclusion from the comparison.
+
+The rule that should have been applied from the start: **evaluate an image
+treatment at the size it will be seen, not at the size it is convenient to
+inspect.**
+
+---
+
 ## Unreleased — 2 August 2026 (e)
 
 **Collision-safety no longer duplicates the archive on every re-test.**
