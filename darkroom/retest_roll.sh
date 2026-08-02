@@ -51,7 +51,10 @@ mkdir -p "$DUMP"
 # "already curated" and skip judging it entirely.
 for f in "$ORIG"/*; do
   [ -f "$f" ] || continue
-  case "$(basename "$f")" in _curation.json|.*) continue ;; esac
+  # _credits.json stays in the archive: the renderer reads it from there by
+  # roll name. Copying it into the dump would leave a file behind that stops
+  # the emptied dump folder being removed.
+  case "$(basename "$f")" in _curation.json|_credits.json|.*) continue ;; esac
   cp -p "$f" "$DUMP"/
 done
 rm -f "$DUMP/_curation.json"

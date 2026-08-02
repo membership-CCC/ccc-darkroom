@@ -507,6 +507,37 @@ Also: `SIZE_MAX` was 34 while the ratio asked for 43, so the clamp silently
 capped it and two candidate sizes rendered identically. Check that a clamp is
 not binding before comparing values that it bounds.
 
+### The credit must be stored per frame, not derived from the folder name
+
+The folder name is how the credit gets *in*. It is not where the credit can
+*live*, and conflating the two cost a whole afternoon of size tuning aimed at a
+mark that was not being drawn at all.
+
+The merge consumes the name. `2026-08-01_borderlands_by_donalrey` becomes roll
+`2026-08-01_borderlands`, the frames are archived under that merged name, and
+no path anywhere still contains a handle. So anything that re-renders from
+`_originals/` — which is exactly what `retest_roll.sh` does, by staging the
+archive back into `_dump/<merged-name>/` — saw a folder with no `_by_` and
+correctly concluded there was no credit. Every export came out bare, with no
+warning, because "this roll is uncredited" is a legitimate state.
+
+`_originals/<roll>/_credits.json` is the durable record: `{original filename:
+"@handle"}`, written by `darkroom.py` as it archives each frame, merged rather
+than replaced so a later photographer's folder cannot erase an earlier one's
+entries. Resolution order per frame is folder `_by_` first, ledger second — the
+folder still wins, so a hand-renamed re-ingest can correct a mistake.
+
+`backfill_credits.py` rebuilds the ledger for rolls processed before it existed,
+from `manifest.csv` (including copies in `<roll>_pre-curator_*` folders that
+`retest_roll.sh` set aside) and from qualified plan files, whose names —
+`_curation_<dump folder>.json` — still carry the handle. It attributes nothing
+it cannot source; unattributable frames are listed, not guessed at.
+
+The general lesson: **a value that arrives as metadata on a container does not
+survive the container being merged away.** If it must outlive the merge, write
+it down next to the thing it describes. And when a treatment appears not to
+work, confirm it is actually being applied before tuning its parameters.
+
 **Only one cycle may run at a time.** The launchd timer does not know you are
 running one by hand. Two overlapping cycles raced on 2 August — one emptied and
 removed a dump folder the other was mid-way through reading. Both derive the

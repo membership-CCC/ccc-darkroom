@@ -10,6 +10,41 @@ it is v2, whatever the filename claims. Secondary check: `darkroom.py` is
 
 ---
 
+## Unreleased — 2 August 2026 (h)
+
+**The photo credit was not faint. It was not being drawn.**
+
+Three rounds of size and opacity tuning were spent on a mark that a re-render
+had stopped rendering entirely. Reported as "still not visible", then as "there
+aren't any credits in anything in that folder" — the second report is the one
+that identified it.
+
+The credit arrives in the dump folder name, `..._by_donalrey`. That name is
+consumed by the merge: two photographers' folders become one roll,
+`2026-08-01_borderlands`, and no path anywhere still carries a handle.
+`retest_roll.sh` re-renders by copying `_originals/<roll>/` back into
+`_dump/<roll>/` — a folder name with no `_by_` in it. The renderer read no
+credit, which is a legitimate state, so it said nothing and marked nothing.
+
+Credit is now stored per frame in `_originals/<roll>/_credits.json`, written as
+each frame is archived and merged on write so a photographer's folder arriving
+days later cannot erase an earlier one's entries. Per frame, the folder name
+still wins where present; the ledger is the fallback. Verified end to end
+against a simulated two-photographer merge followed by an archive round-trip:
+credits survive, and the same round-trip on the old code produces a credit
+corner measuring exactly zero.
+
+`backfill_credits.py` recovers the ledger for rolls processed before this,
+from their own manifests (including the copies `retest_roll.sh` sets aside as
+`<roll>_pre-curator_*`) and from qualified plan filenames, which still contain
+the handle. It reports what it could not attribute rather than guessing.
+
+Two lessons: a value carried as metadata on a container does not survive the
+container being merged away — write it down beside what it describes. And
+before tuning a treatment that looks wrong, confirm it is being applied.
+
+---
+
 ## Unreleased — 2 August 2026 (g)
 
 **HOLD's text heuristic matched words, not locations.**

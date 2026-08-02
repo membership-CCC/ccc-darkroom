@@ -27,6 +27,7 @@ TARGETS=(
   darkroom_intake.py
   tidy_dump.py
   analyze_run.py
+  backfill_credits.py
   darkroom_cycle.sh
   retest_roll.sh
 )

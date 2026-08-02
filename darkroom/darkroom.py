@@ -69,6 +69,13 @@ except ImportError:                                    # pragma: no cover
         return img
 
 PLAN_NAME = "_curation.json"
+# Who shot which frame, kept beside the frames themselves in _originals/<roll>/.
+# The folder name carries the credit on the way IN, but that name is consumed by
+# the merge: two "_by_" folders become one roll and the handles are gone from
+# every path. Anything that re-renders from the archive — retest_roll.sh does
+# exactly this — then produced uncredited exports. The ledger is the durable
+# record. Plain JSON, keyed by original filename, safe to hand-edit.
+CREDITS_NAME = "_credits.json"
 HOLD_DIRNAME = "_hold"
 
 # Directories that are never rolls. `xArchive` is the convention for a bin of
@@ -381,6 +388,51 @@ def parse_roll(name: str) -> tuple[str, str, str | None]:
     return date_str, slugify(label), credit
 
 
+def load_credit_ledger(key: str) -> dict:
+    """{original filename: "@handle"} for a roll, or {} if there is none.
+
+    Never raises: a corrupt ledger costs the credits on a re-render, which is
+    the status quo it was written to fix, and must not strand the roll.
+    """
+    path = ORIGINALS / key / CREDITS_NAME
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {str(k): str(v) for k, v in data.items() if v}
+
+
+def save_credit_ledger(key: str, additions: dict) -> None:
+    """Merge new frame->handle pairs into the roll's ledger.
+
+    Merge rather than replace: a roll grows. The second photographer's folder
+    arrives days after the first has been archived, and rewriting the file with
+    only the current batch would erase the first photographer's credits.
+    An existing entry wins — the archive is the record of what was actually
+    rendered, and a later pass should not silently reattribute a frame.
+    """
+    if not additions:
+        return
+    path = ORIGINALS / key / CREDITS_NAME
+    merged = load_credit_ledger(key)
+    changed = False
+    for name, handle in additions.items():
+        if handle and name not in merged:
+            merged[name] = handle
+            changed = True
+    if not changed:
+        return
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(merged, indent=2, sort_keys=True) + "\n")
+        tmp.replace(path)
+    except OSError as exc:                             # noqa: BLE001
+        LOG.warning("[%s] could not write %s: %s", key, CREDITS_NAME, exc)
+
+
 def same_file(a: Path, b: Path) -> bool:
     """Cheap content equality: size, then a hash of the head and tail.
 
@@ -498,6 +550,11 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
     state = load_state(key)
     out_root = OUTPUT / key
     orig_dir = ORIGINALS / key
+    # The folder name is authoritative when it carries "_by_". When it does not
+    # — a re-render staged out of the archive, where the merge already ate the
+    # handles — fall back to what this roll recorded the first time round.
+    ledger = load_credit_ledger(key)
+    new_credits: dict[str, str] = {}
     rows: list[dict] = []
     seq = max((int(v.get("seq", 0)) for v in state.values()), default=0)
     done = 0
@@ -513,6 +570,7 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
             continue
 
         entry = plan.get(src.name) or {}
+        frame_credit = credit or ledger.get(src.name)
         seq += 1
         stem = f"CCC_{date_str}_{slug}_{seq:03d}"
 
@@ -542,12 +600,14 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
         if entry.get("verdict") == "reject":
             orig_dir.mkdir(parents=True, exist_ok=True)
             shutil.move(str(src), str(orig_dir / src.name))
+            if frame_credit:
+                new_credits[src.name] = frame_credit
             stamp = dt.datetime.now().isoformat(timespec="seconds")
             state[fp] = {"seq": seq, "source": src.name, "processed_at": stamp,
                          "rejected": True}
             rows.append(_row(seq, key, date_str, src, stem, orient, [], flag, note,
                              metrics, stamp, entry, status="rejected",
-                             credit=credit))
+                             credit=frame_credit))
             done += 1
             LOG.info("[%s] %s -> REJECTED (%s) — archived, nothing rendered",
                      key, src.name, entry.get("verdict_note", "no reason given"))
@@ -590,8 +650,8 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
                         out_img, used = render_curated(img, spec, crop)
                     # After resize, so the mark is sized against the exported
                     # dimensions rather than the source. Originals stay clean.
-                    if credit:
-                        out_img = draw_credit(out_img, credit, pname)
+                    if frame_credit:
+                        out_img = draw_credit(out_img, frame_credit, pname)
                     d = dest_root / spec["dir"]
                     d.mkdir(parents=True, exist_ok=True)
                     out_img.save(d / f"{stem}_{pname}{suffix}.jpg", "JPEG",
@@ -627,11 +687,13 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
         else:
             shutil.move(str(src), str(dest))
 
+        if frame_credit:
+            new_credits[dest.name] = frame_credit
         stamp = dt.datetime.now().isoformat(timespec="seconds")
         state[fp] = {"seq": seq, "source": src.name, "processed_at": stamp}
         rows.append(_row(seq, key, date_str, src, stem, orient, made, flag, note,
                          metrics, stamp, entry,
-                         status="hold" if held else "draft", credit=credit))
+                         status="hold" if held else "draft", credit=frame_credit))
         done += 1
         LOG.info("[%s] %s -> %s  [%s, %s, %d formats]%s%s", key, src.name, stem,
                  orient, tone, len(made),
@@ -639,6 +701,7 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
                  "" if flag == "ok" else f"  ({flag})")
 
     if rows and not dry:
+        save_credit_ledger(key, new_credits)
         write_manifest(out_root / "manifest.csv", rows)
         write_decisions_stub(out_root / "decisions.txt", key)
         held_rows = [r for r in rows if r["status"] == "hold"]
