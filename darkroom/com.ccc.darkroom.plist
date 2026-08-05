@@ -21,9 +21,26 @@
         <string>__HOME__/CCC/Darkroom/bin/darkroom_cycle.sh</string>
     </array>
 
-    <!-- every 15 minutes -->
+    <!-- every 15 minutes: the completeness guarantee -->
     <key>StartInterval</key>
     <integer>900</integer>
+
+    <!-- v5: also fire the moment _dump itself changes. A new roll folder
+         appearing triggers a cycle within seconds instead of waiting out the
+         timer. Note the limits honestly: WatchPaths sees changes TO the
+         watched directory (a subfolder created or removed), not files landing
+         deeper inside an existing subfolder — the timer covers that case.
+         __DUMP__ is substituted by install_launchd.sh from the account-patched
+         cycle script, so this can never point at a placeholder account. -->
+    <key>WatchPaths</key>
+    <array>
+        <string>__DUMP__</string>
+    </array>
+
+    <!-- Drive sync makes WatchPaths chatty; don't relaunch more than once
+         every 2 minutes. The 15-minute timer is unaffected. -->
+    <key>ThrottleInterval</key>
+    <integer>120</integer>
 
     <!-- also fire once on load, so a deploy can be verified immediately -->
     <key>RunAtLoad</key>

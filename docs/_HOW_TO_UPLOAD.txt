@@ -132,3 +132,12 @@ Bad:   _dump/2026-08-01_borderlands   (slash)
 ────────────────────────────────────────────────
 Catskills Cycling Club · full docs:
 github.com/membership-CCC/ccc-darkroom
+
+IS IT WORKING? (check from your phone)
+--------------------------------------
+Open Drive > CCC > Photos > _darkroom_status.txt.
+Every automated cycle rewrites that file. Within ~15 minutes of an upload it
+should mention your roll (processed, or "still syncing"). If its timestamp is
+hours old while your upload sits in _dump, the automation is down — on Ada run:
+    ~/CCC/Darkroom/bin/darkroom_doctor.sh
+and it will say exactly what is wrong and how to fix it.

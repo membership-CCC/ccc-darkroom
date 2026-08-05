@@ -29,6 +29,8 @@ SCRIPTS=(
   analyze_run.py
   backfill_credits.py
   darkroom_cycle.sh
+  darkroom_learn.sh
+  darkroom_doctor.sh
   retest_roll.sh
 )
 

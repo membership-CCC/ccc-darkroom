@@ -671,3 +671,28 @@ images of its own community.
 
 The system does not choose pictures, does not edit content, and does not
 publish.
+
+## The pipeline proves it ran, or says it didn't (v5)
+
+Three silent outages taught the same lesson: on a headless Mac, "no news" and
+"dead" are indistinguishable unless the system is DESIGNED to make them
+different. v5 makes them different in three channels, cheapest first:
+
+1. **Phone**: `_darkroom_status.txt` at the root of `CCC/Photos` in Drive,
+   rewritten every cycle. Stale timestamp while uploads wait = down.
+2. **Mac**: `~/CCC/Darkroom/logs/darkroom.log`, rotated at 5MB.
+3. **Diagnosis**: `~/CCC/Darkroom/bin/darkroom_doctor.sh` — PASS/WARN/FAIL for
+   every failure mode that has actually happened, with fix commands.
+
+Standing rules that fell out of the outages:
+
+- **Installers must witness a run.** `install_launchd.sh` HALTs unless the
+  cycle's heartbeat moves under launchd during the install. Loaded is not
+  running; listed is not working.
+- **Deploys reinstall the agents.** The plists are regenerated from templates
+  (`__HOME__`, `__DUMP__` substituted mechanically) on every `apply.sh`. No
+  hand-edited plist may ever exist again — that is what caused the outage.
+- **Never process a roll Drive is still writing.** Stability window + dataless
+  check; defer is free, a half-processed roll is not.
+- **Watchdogs report, they do not repair.** The Sunday learn job checks the
+  main heartbeat; unattended self-repair is how one broken thing becomes two.

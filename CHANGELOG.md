@@ -10,6 +10,57 @@ it is v2, whatever the filename claims. Secondary check: `darkroom.py` is
 
 ---
 
+## Unreleased — 4 August 2026 (j)
+
+### The silent-failure redesign: the pipeline now proves it ran, or says it didn't
+
+The automation died silently three separate times. Root cause of the standing
+outage: the launchd plist installed on Ada was a v3-era hand-edit template
+pointing at `/Users/johndolsson/`, a home directory that does not exist —
+launchd fired every 15 minutes into a void, and could not even log the failure
+because its log path was inside the nonexistent home too. Compounding it,
+`apply.sh` said "there is nothing to reload," so every update faithfully
+repaired the scripts while preserving the broken agent that runs them.
+
+The redesign's governing rule: **every failure mode either self-heals, retries
+next cycle, or announces itself somewhere John actually looks.**
+
+- **`_darkroom_status.txt`** at the root of `CCC/Photos` in Drive, rewritten by
+  every cycle. Drive syncs it to the phone: a fresh timestamp is a live
+  pipeline, a stale one is the alarm, and the file names the command to run.
+- **The heartbeat moves at cycle START** (`.state/heartbeat`) — it answers "is
+  launchd running me at all", the question none of the three failures could.
+- **`install_launchd.sh` verifies END-TO-END**: after loading it waits for the
+  heartbeat to move under launchd and HALTs if it doesn't. "launchctl list
+  shows it" was true during all three outages; it is no longer accepted as
+  proof. `apply.sh` now reinstalls the agents on every run.
+- **WatchPaths on `_dump`**: a new roll triggers a cycle in ~2 minutes; the
+  15-minute timer remains the completeness guarantee. `__DUMP__` is
+  substituted from the account-patched cycle script — one source of truth.
+- **Roll readiness gate**: a roll whose contents change across a 3-second
+  window (mid-sync) or whose files are cloud-only placeholders (0 allocated
+  blocks) is DEFERRED, not half-processed; placeholders get a 1MB read nudge
+  to start materializing. >12 deferrals flags the roll as stuck in the status
+  file. Matters double for 35mm lab-scan TIFFs, which are large and sync slow.
+- **Drive self-heal**: if the configured mount is gone but another
+  `GoogleDrive-*` mount has the right shape, the cycle uses it and warns —
+  an account rename degrades to a log line instead of an outage.
+- **Cross-watchdog**: the Sunday learn job runs via `darkroom_learn.sh`, which
+  first checks the main heartbeat and raises the alarm at >2h stale. Two
+  independent schedules watching each other; it reports, never repairs.
+- **`darkroom_doctor.sh`** (new): the 30-second diagnosis. Every check is a
+  scar — wrong-user plists, installed-but-not-loaded agents, TCC-blocked
+  CloudStorage reads, EDEADLK listings, placeholder files, stale locks, the
+  machine sleeping through its own timer. PASS/WARN/FAIL with the fix command.
+- Plist substitution moved from sed to python: the dump path contains an
+  email and spaces, and a sed metacharacter in a path corrupts a plist
+  silently — the exact class of failure this release exists to kill.
+
+Lesson recorded for the next redesign: an unattended system without a
+proof-of-life channel is not automated, it is abandoned with extra steps.
+
+---
+
 ## Unreleased — 2 August 2026 (i)
 
 **Originals are filed by photographer.**

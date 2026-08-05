@@ -14,11 +14,14 @@
     <key>Label</key>
     <string>com.ccc.darkroom.learn</string>
 
+    <!-- v5: runs through the shell wrapper, which first checks the MAIN
+         cycle's heartbeat and raises the alarm if it has gone stale. Two
+         independent schedules watching each other — the property no single
+         job can have. -->
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/python3</string>
-        <string>__HOME__/CCC/Darkroom/bin/darkroom_learn.py</string>
-        <string>--write</string>
+        <string>/bin/bash</string>
+        <string>__HOME__/CCC/Darkroom/bin/darkroom_learn.sh</string>
     </array>
 
     <!-- Sundays at 20:00 -->
