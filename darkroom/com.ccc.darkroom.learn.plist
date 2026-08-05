@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  TEMPLATE — __HOME__ is substituted by install_launchd.sh.
+  TEMPLATE — the home-directory placeholder is substituted by install_launchd.sh.
 
   darkroom_learn.py calibrates the ADVISORY thresholds inside darkroom.py,
   which the v3 curator largely bypasses. It is kept because decisions.txt is

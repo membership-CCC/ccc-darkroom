@@ -234,9 +234,8 @@ class BasicBackend:
     GRID = 96
 
     def analyse(self, path: Path) -> dict:
-        with Image.open(path) as im:
-            im = ImageOps.exif_transpose(im)
-            g = ImageOps.grayscale(im).resize((self.GRID, self.GRID), Image.BILINEAR)
+        im = open_image_retry(path)
+        g = ImageOps.grayscale(im).resize((self.GRID, self.GRID), Image.BILINEAR)
         px = list(g.tobytes())
         N = self.GRID
         energy = [0.0] * (N * N)
@@ -720,6 +719,28 @@ def listdir_retry(d: Path, attempts: int = 4, pause: float = 2.0) -> list:
     return []
 
 
+def open_image_retry(path, attempts: int = 4, pause: float = 2.0):
+    """Same disease as listdir_retry, one layer down: Drive can refuse a READ
+    with EDEADLK while its daemon shuffles a placeholder — even when stat says
+    the file is fully local (v5.2, learned live: block counts said ready,
+    Image.open got errno 11). Returns a loaded, orientation-corrected copy so
+    the Drive file handle is closed before the next touch."""
+    for i in range(attempts):
+        try:
+            with Image.open(path) as raw:
+                im = ImageOps.exif_transpose(raw)
+                im.load()
+                return im
+        except OSError as exc:
+            if i == attempts - 1:
+                raise
+            print(f"  reading {path.name} failed ({exc.strerror or exc}) — "
+                  f"retry {i + 1}/{attempts - 1} in {pause:.0f}s", file=sys.stderr)
+            time.sleep(pause)
+            pause *= 2
+    raise OSError(f"unreadable after {attempts} attempts: {path}")
+
+
 def curate_dir(folder: Path, backend, key: str | None, use_cache: bool,
                verbose: bool) -> dict:
     srcs = sorted(p for p in listdir_retry(folder)
@@ -734,10 +755,7 @@ def curate_dir(folder: Path, backend, key: str | None, use_cache: bool,
     spent = [0, 0]
 
     for src in srcs:
-        with Image.open(src) as raw:
-            im = ImageOps.exif_transpose(raw)
-            im.load()
-            im = im.convert("RGB")
+        im = open_image_retry(src).convert("RGB")
         iw, ih = im.size
         m = measure(im)
 

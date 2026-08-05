@@ -102,6 +102,13 @@ trap 'rm -rf "$LOCK"' EXIT INT TERM
 
 echo "=== darkroom cycle $(date '+%Y-%m-%d %H:%M:%S') ==="
 
+# Per-roll hold list, honored by darkroom.py (v5.2). Rewritten every cycle:
+# a roll goes on it when it is mid-sync or failed curation, and the renderer
+# processes everything else normally instead of being held hostage.
+SKIPLIST="$STATE/skip_rolls.txt"
+: > "$SKIPLIST" 2>/dev/null || true
+hold_roll() { echo "$1" >> "$SKIPLIST" 2>/dev/null || true; }
+
 # ---------------------------------------------------------------------------
 # Find Drive — self-heal, then wait, then say so.
 #
@@ -180,11 +187,19 @@ roll_ready() {     # 0 ready | 1 defer   (prints its own reasons)
     return 1
   fi
 
+  # READ PROBE — the v5.2 lesson, learned live on the first proven cycle:
+  # stat's block count said "materialized" while PIL's read got EDEADLK.
+  # On this mount, metadata is folklore and READS are ground truth. Probe
+  # the head of every file (which doubles as the materialization nudge);
+  # any file that won't read after two tries defers the roll.
   while IFS= read -r -d '' f; do
-    blocks="$(stat -f%b "$f" 2>/dev/null || echo 1)"
-    if [ "$blocks" -eq 0 ] && [ "$(stat -f%z "$f" 2>/dev/null || echo 0)" -gt 0 ]; then
-      echo "-- $name has cloud-only placeholders ($(basename "$f")) — nudging download, deferring"
-      head -c 1048576 "$f" >/dev/null 2>&1 || true
+    probe_ok=0
+    for t in 1 2; do
+      if head -c 65536 "$f" >/dev/null 2>&1; then probe_ok=1; break; fi
+      sleep 3
+    done
+    if [ "$probe_ok" -eq 0 ]; then
+      echo "-- $name: cannot read $(basename "$f") yet (still syncing, or Drive is busy) — deferring"
       return 1
     fi
   done < <(find "$roll" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \
@@ -202,13 +217,23 @@ defer_mark() {     # $1 roll name -> echoes defer count after increment
 defer_clear() {
   rm -f "$STATE/defer.$(/sbin/md5 -q -s "$1" 2>/dev/null || echo x)" 2>/dev/null || true
 }
+cfail_mark() {     # curation failures count separately from sync deferrals
+  local key n
+  key="$STATE/cfail.$(/sbin/md5 -q -s "$1" 2>/dev/null || echo x)"
+  n=$(($(cat "$key" 2>/dev/null || echo 0) + 1))
+  echo "$n" > "$key" 2>/dev/null || true
+  echo "$n"
+}
+cfail_clear() {
+  rm -f "$STATE/cfail.$(/sbin/md5 -q -s "$1" 2>/dev/null || echo x)" 2>/dev/null || true
+}
 
 # ---------------------------------------------------------------------------
 # Curate every pending, READY roll. Several can queue between runs, and an
 # uncurated roll would render on the old shape-only rules.
 # ---------------------------------------------------------------------------
 shopt -s nullglob
-DEFERRED=0; CURATED=0; STUCK=""
+DEFERRED=0; CURATED=0; CFAIL=0; CFAIL_NAMES=""; CFAIL_OVERRIDE=0; CFAIL_NOTIFY=0; STUCK=""
 for roll in "$DUMP"/*/; do
   name="$(basename "$roll")"
   lname="$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')"
@@ -221,6 +246,7 @@ for roll in "$DUMP"/*/; do
 
   if ! roll_ready "$roll"; then
     DEFERRED=$((DEFERRED + 1))
+    hold_roll "$name"
     n="$(defer_mark "$name")"
     if [ "$n" -gt 12 ]; then
       STUCK="$STUCK $name(${n}x)"
@@ -232,14 +258,31 @@ for roll in "$DUMP"/*/; do
 
   if [ -f "$roll/_curation.json" ]; then
     echo "-- $name already curated, skipping judgment"
+    cfail_clear "$name"
     continue
   fi
   echo "-- curating $name"
-  # A curation failure must not strand the roll: the renderer still handles
-  # it on the old rules — worse output, not lost work.
-  python3 "$BIN/darkroom_curate.py" --dir "$roll" -q \
-    || echo "!! curation failed for $name — rendering on v2 rules instead"
-  CURATED=$((CURATED + 1))
+  if python3 "$BIN/darkroom_curate.py" --dir "$roll" -q; then
+    CURATED=$((CURATED + 1))
+    cfail_clear "$name"
+  else
+    # v5.2: a curation failure NO LONGER falls through to a v2-rules render.
+    # That fallback quietly converted "transient I/O error" into "roll
+    # consumed without judgment" — no holds, no format decisions. Instead
+    # the RENDERER IS HELD this cycle and the roll retries in 15 minutes.
+    # After 12 consecutive failures the old fallback re-arms, LOUDLY, so one
+    # permanently bad roll cannot wedge the whole pipeline forever.
+    n="$(cfail_mark "$name")"
+    CFAIL=$((CFAIL + 1)); CFAIL_NAMES="$CFAIL_NAMES $name(${n}x)"
+    case "$n" in 1|6|12) CFAIL_NOTIFY=1 ;; esac
+    if [ "$n" -gt 12 ]; then
+      echo "!! curation failed for $name $n times — v2-rules fallback re-armed, flagged"
+      CFAIL_OVERRIDE=1
+    else
+      echo "!! curation failed for $name (attempt $n/12) — this roll is held; others render normally"
+      hold_roll "$name"
+    fi
+  fi
 done
 
 # ---------------------------------------------------------------------------
@@ -257,13 +300,12 @@ count_rolls() {
   echo "$c"
 }
 
+RENDER_OK=1; SHEET_OK=1; DONE=0
 BEFORE="$(count_rolls)"
-echo "-- rendering"
-RENDER_OK=1
+echo "-- rendering (held rolls are skipped via $SKIPLIST)"
 python3 "$BIN/darkroom.py" || RENDER_OK=0
 
 echo "-- contact sheets"
-SHEET_OK=1
 python3 "$BIN/darkroom_sheet.py" --all || SHEET_OK=0
 AFTER="$(count_rolls)"
 DONE=$((BEFORE - AFTER)); [ "$DONE" -lt 0 ] && DONE=0
@@ -273,6 +315,14 @@ DONE=$((BEFORE - AFTER)); [ "$DONE" -lt 0 ] && DONE=0
 # ---------------------------------------------------------------------------
 if [ "$RENDER_OK" -eq 0 ]; then
   fail_loud "The renderer exited with an error — see logs/darkroom.log on Ada."
+elif [ "$CFAIL" -gt 0 ] && [ "$CFAIL_OVERRIDE" -eq 0 ]; then
+  MSG="PROBLEM: curation failed for:$CFAIL_NAMES — held unprocessed so nothing is consumed unjudged; retrying every 15 min, loud fallback after 12."
+  [ "$DONE" -gt 0 ] && MSG="$MSG Other rolls processed normally ($DONE this cycle)."
+  status_write "$MSG"
+  [ "$CFAIL_NOTIFY" -eq 1 ] && notify "Darkroom: curation failing, roll held — see _darkroom_status.txt"
+elif [ "$CFAIL_OVERRIDE" -eq 1 ]; then
+  status_write "PROBLEM: curation failed 12+ times for:$CFAIL_NAMES — rendered on old v2 rules to avoid wedging the pipeline. Check these rolls by hand."
+  notify "Darkroom: a roll was processed WITHOUT judgment after 12 failed attempts"
 elif [ -n "$STUCK" ]; then
   status_write "PROBLEM: roll(s) stuck syncing for hours:$STUCK. Drive may have stalled — open Drive for Desktop on Ada and check its sync status."
   notify "Darkroom: a roll appears stuck in sync"

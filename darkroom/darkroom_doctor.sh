@@ -42,7 +42,10 @@ for p in com.ccc.darkroom.plist com.ccc.darkroom.learn.plist; do
          "./install_launchd.sh (never hand-copy the template)"
     continue
   fi
-  BADPATH="$(grep -o '/Users/[^/<]*' "$AGENTS/$p" | sort -u | grep -v "^$HOME\$" || true)"
+  # Only path-like tokens: stop at space/quote/< so substituted COMMENT text
+  # ("/Users/john is substituted by...") cannot masquerade as a wrong path —
+  # the v5.1 doctor cried wolf on exactly that.
+  BADPATH="$(grep -o '/Users/[^/<" ]*' "$AGENTS/$p" | sort -u | grep -v "^$HOME\$" || true)"
   if [ -n "$BADPATH" ]; then
     # THE bug: a plist pointing into a home directory that is not this one.
     # launchd fires forever, finds nothing, and cannot even log the failure
@@ -63,7 +66,9 @@ if [ -z "$LIST" ]; then
        "./install_launchd.sh"
 else
   # launchctl list: PID  LastExitStatus  Label
-  echo "$LIST" | while read -r pid code label; do
+  # (process substitution, not a pipe: a piped while runs in a subshell and
+  #  its pass/fail counters evaporate — the v5.1 doctor undercounted)
+  while read -r pid code label; do
     if [ "$code" = "0" ] || [ "$pid" != "-" ]; then
       pass "$label loaded (pid=$pid last-exit=$code)"
     elif [ "$code" = "78" ] || [ "$code" = "127" ]; then
@@ -71,7 +76,7 @@ else
     else
       warn "$label loaded, last exit was $code — check the log tail below"
     fi
-  done
+  done < <(printf '%s\n' "$LIST")
 fi
 
 # --- 3. Heartbeat -------------------------------------------------------------

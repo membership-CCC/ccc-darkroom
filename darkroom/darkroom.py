@@ -639,12 +639,25 @@ def process_roll(roll_dir: Path, dry: bool, force: bool, only: set[str] | None,
             continue
 
         try:
-            with Image.open(src) as im:
-                im.load()
-                im = ImageOps.exif_transpose(im)
-                flag, note, metrics = assess_frame(im)
-                orient = orientation_of(im)
-                base = im.convert("RGB")
+            # v5.2: Drive can refuse reads with EDEADLK even after stat says
+            # the file is local. Retry before treating the frame as bad — a
+            # frame skipped here vanishes from a merged roll SILENTLY, which
+            # is the same failure shape as the fingerprint bug of (i).
+            for _attempt in range(4):
+                try:
+                    with Image.open(src) as im:
+                        im.load()
+                        im = ImageOps.exif_transpose(im)
+                    break
+                except OSError as _exc:
+                    if _attempt == 3:
+                        raise
+                    LOG.warning("[%s] read of %s failed (%s) — retry %d/3",
+                                key, src.name, _exc, _attempt + 1)
+                    time.sleep(2 * (_attempt + 1))
+            flag, note, metrics = assess_frame(im)
+            orient = orientation_of(im)
+            base = im.convert("RGB")
         except Exception as exc:                       # noqa: BLE001
             LOG.error("[%s] FAILED to read %s: %s", key, src.name, exc)
             continue
@@ -977,6 +990,21 @@ def main() -> int:
                     "subfolder so they get a roll label", len(loose))
 
     dirs = [d for d in sorted(inbox.iterdir()) if is_roll_dir(d)]
+
+    # v5.2: the cycle wrapper defers rolls that are mid-sync or failed
+    # curation, but this renderer scans _dump for itself — without this
+    # check it would consume a deferred roll unjudged, which is exactly the
+    # hole that let a half-synced roll through on the first proven cycle.
+    # The wrapper rewrites the skip file every run; a missing file skips
+    # nothing, so hand runs of darkroom.py behave as before.
+    skip_file = Path.home() / "CCC/Darkroom/.state/skip_rolls.txt"
+    if skip_file.exists():
+        skips = {l.strip() for l in skip_file.read_text().splitlines() if l.strip()}
+        held = [x for x in dirs if x.name in skips]
+        dirs = [x for x in dirs if x.name not in skips]
+        for x in held:
+            LOG.info("[%s] held by the cycle wrapper (syncing or uncurated) — skipping", x.name)
+
     if not dirs:
         LOG.info("nothing to do")
         return 0

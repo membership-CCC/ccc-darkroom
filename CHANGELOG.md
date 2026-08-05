@@ -67,10 +67,35 @@ right shape, which is also more general. Verified against the patcher's
 verbatim regex: post-patch diff touches one line, post-patch script parses,
 full simulated cycle processes a roll.
 
+**v5.2, first proven cycle.** The install PASSED its end-to-end proof and
+immediately taught three more lessons, live:
+
+- **Reads are ground truth; block counts are folklore.** stat said a roll was
+  materialized; PIL's read got EDEADLK. roll_ready now probe-reads the head
+  of every file (the probe doubles as the materialization nudge) and defers
+  on any failure. Retry-on-EDEADLK added at the read layer of curate AND
+  renderer — the renderer previously SKIPPED a frame on first read error,
+  which in a merged roll is silent data loss, the same failure shape as the
+  fingerprint bug of (i).
+- **The renderer scans _dump for itself**, so wrapper-level deferral alone
+  could not protect a roll: it skipped curation and the renderer consumed
+  the roll unjudged anyway. New mechanism: the wrapper writes
+  `.state/skip_rolls.txt` each cycle; darkroom.py honors it. Held rolls wait,
+  healthy rolls process normally in the same cycle.
+- **The "curation failed -> render on v2 rules" fallback is retired** for the
+  first 12 attempts. It converted transient I/O errors into rolls consumed
+  without judgment. After 12 consecutive failures it re-arms, loudly, so one
+  permanently bad roll cannot wedge the pipeline.
+- Doctor false positives fixed: path extraction now stops at spaces (the
+  substituted plist COMMENT read as a wrong path), and the launchd-state
+  loop no longer loses its counters to a pipe subshell.
+
 Lesson recorded for the next redesign: an unattended system without a
 proof-of-life channel is not automated, it is abandoned with extra steps.
 Second lesson, an hour later: before feeding new text to an existing
-rewriter, read the rewriter.
+rewriter, read the rewriter. Third, an hour after that: a mock that deletes
+whatever the real component would have refused to touch proves nothing —
+make the mock honor the contract before trusting the green light.
 
 ---
 
