@@ -105,15 +105,18 @@ echo "=== darkroom cycle $(date '+%Y-%m-%d %H:%M:%S') ==="
 # ---------------------------------------------------------------------------
 # Find Drive — self-heal, then wait, then say so.
 #
-# 1. If the configured path is gone but a GoogleDrive-* mount exists with the
+# 1. If the configured path is gone but ANOTHER CloudStorage mount has the
 #    right shape, use it and warn: an account rename must not kill the
-#    pipeline, it should degrade to a warning in the log.
+#    pipeline, it should degrade to a warning in the log. (Worded carefully:
+#    set_drive_account.sh rewrites every 'Drive account token' in this file
+#    with a newline-crossing regex, so the token appears exactly once, on the
+#    DUMP= line above. v5.1 exists because a glob in a comment tripped it.)
 # 2. Drive for Desktop mounts late after login. Wait up to 2 minutes — the
 #    lock prevents pileup and a 15-minute cadence absorbs the stall.
 # 3. Still nothing: that is a phone-visible PROBLEM, not a silent exit 0.
 # ---------------------------------------------------------------------------
 if [ ! -d "$DUMP" ]; then
-  for cand in "$HOME/Library/CloudStorage/"GoogleDrive-*"/My Drive/CCC/Photos/_dump"; do
+  for cand in "$HOME/Library/CloudStorage/"*"/My Drive/CCC/Photos/_dump"; do
     if [ -d "$cand" ]; then
       echo "WARN: configured dump path missing; self-healed to: $cand"
       DUMP="$cand"

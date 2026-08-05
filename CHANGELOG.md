@@ -56,8 +56,21 @@ next cycle, or announces itself somewhere John actually looks.**
   email and spaces, and a sed metacharacter in a path corrupts a plist
   silently — the exact class of failure this release exists to kill.
 
+**v5.1, same day.** First deploy of v5 halted at apply.sh's verification
+gate: the new cycle script said `GoogleDrive-*` in a comment and a glob, and
+set_drive_account.sh's rewrite pattern (`GoogleDrive-[^/"']+` — newlines ARE
+in that class) ate seven lines through it, snapping the script. The gate
+caught the mangle before anything loaded — the first field save of the v5
+design. Fix: the Drive token now appears exactly once per patched file, on
+the DUMP= line; the self-heal glob matches any CloudStorage mount with the
+right shape, which is also more general. Verified against the patcher's
+verbatim regex: post-patch diff touches one line, post-patch script parses,
+full simulated cycle processes a roll.
+
 Lesson recorded for the next redesign: an unattended system without a
 proof-of-life channel is not automated, it is abandoned with extra steps.
+Second lesson, an hour later: before feeding new text to an existing
+rewriter, read the rewriter.
 
 ---
 
